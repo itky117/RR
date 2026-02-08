@@ -1,0 +1,7 @@
+fn main() {
+  let x = c(1L, NA, 3L);
+  print(x > 1L);
+  return 0L;
+}
+
+print(main());
