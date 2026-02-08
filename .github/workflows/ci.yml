@@ -35,6 +35,10 @@ jobs:
     name: Fuzz Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      CARGO_PROFILE_RELEASE_LTO: "off"
+      CARGO_PROFILE_RELEASE_STRIP: "none"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,8 +55,8 @@ jobs:
       - name: Install Fuzz Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang llvm
-          cargo install cargo-fuzz --locked
+          sudo apt-get install -y --no-install-recommends clang lld
+          cargo install cargo-fuzz --version 0.13.1 --locked
 
       - name: Parser Fuzz Smoke
         run: cargo fuzz run parser fuzz/corpus/parser -- -max_total_time=20 -rss_limit_mb=2048
