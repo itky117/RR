@@ -1,4 +1,37 @@
-fuzz-smoke:
+name: RR CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test + Perf Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RR_PERF_GATE_MS: "12000"
+      RR_PERF_O2_O1_RATIO: "12"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Rscript
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends r-base-core
+
+      - name: Run Tests
+        run: cargo test -q
+
+  fuzz-smoke:
     name: Fuzz Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 30
