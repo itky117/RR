@@ -1,5 +1,5 @@
 use crate::mir::*;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 use std::fmt;
 
 #[derive(Debug)]
@@ -83,7 +83,7 @@ pub fn verify_ir(fn_ir: &FnIR) -> Result<(), VerifyError> {
             }
             ValueKind::Unary { rhs, .. } => check_val(fn_ir, *rhs)?,
             ValueKind::Phi { args } => {
-                let mut seen = HashSet::new();
+                let mut seen = FxHashSet::default();
                 for (v, b) in args {
                     check_val(fn_ir, *v)?;
                     check_blk(fn_ir, *b)?;
@@ -148,7 +148,7 @@ pub fn verify_ir(fn_ir: &FnIR) -> Result<(), VerifyError> {
     }
 
     // 3. Validate instructions and unreachable blocks
-    let mut assigned_vars: HashSet<VarId> = HashSet::new();
+    let mut assigned_vars: FxHashSet<VarId> = FxHashSet::default();
     for (bid, blk) in fn_ir.blocks.iter().enumerate() {
         for instr in &blk.instrs {
             match instr {
@@ -215,8 +215,8 @@ fn check_blk(fn_ir: &FnIR, bid: BlockId) -> Result<(), VerifyError> {
     }
 }
 
-fn compute_reachable(fn_ir: &FnIR) -> HashSet<BlockId> {
-    let mut reachable = HashSet::new();
+fn compute_reachable(fn_ir: &FnIR) -> FxHashSet<BlockId> {
+    let mut reachable = FxHashSet::default();
     let mut queue = vec![fn_ir.entry];
     reachable.insert(fn_ir.entry);
 
@@ -250,8 +250,8 @@ fn compute_reachable(fn_ir: &FnIR) -> HashSet<BlockId> {
     reachable
 }
 
-fn collect_used_values(fn_ir: &FnIR, reachable: &HashSet<BlockId>) -> HashSet<ValueId> {
-    let mut used = HashSet::new();
+fn collect_used_values(fn_ir: &FnIR, reachable: &FxHashSet<BlockId>) -> FxHashSet<ValueId> {
+    let mut used = FxHashSet::default();
     let mut worklist: Vec<ValueId> = Vec::new();
 
     for bid in 0..fn_ir.blocks.len() {

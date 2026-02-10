@@ -1,6 +1,7 @@
 use crate::mir::*;
 use crate::syntax::ast::Lit;
-use std::collections::{HashMap, HashSet, VecDeque};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::collections::VecDeque;
 
 #[derive(Clone, Debug, PartialEq)]
 enum Lattice {
@@ -25,13 +26,13 @@ impl MirSCCP {
         &self,
         fn_ir: &FnIR,
     ) -> (
-        HashMap<ValueId, Lattice>,
-        HashSet<BlockId>,
-        HashSet<(BlockId, BlockId)>,
+        FxHashMap<ValueId, Lattice>,
+        FxHashSet<BlockId>,
+        FxHashSet<(BlockId, BlockId)>,
     ) {
-        let mut lattice = HashMap::new();
-        let mut executable_edges = HashSet::new(); // HashSet<(from, to)>
-        let mut executable_blocks = HashSet::new();
+        let mut lattice = FxHashMap::default();
+        let mut executable_edges = FxHashSet::default(); // FxHashSet<(from, to)>
+        let mut executable_blocks = FxHashSet::default();
         let mut flow_worklist = VecDeque::new();
         let mut ssa_worklist = VecDeque::new();
 
@@ -47,7 +48,7 @@ impl MirSCCP {
         }
 
         // Maps value to its users
-        let mut users: HashMap<ValueId, Vec<User>> = HashMap::new();
+        let mut users: FxHashMap<ValueId, Vec<User>> = FxHashMap::default();
         self.build_user_map(fn_ir, &mut users);
 
         while !flow_worklist.is_empty() || !ssa_worklist.is_empty() {
@@ -118,7 +119,7 @@ impl MirSCCP {
     }
 
     #[cfg(test)]
-    fn solve_for_test(&self, fn_ir: &FnIR) -> (HashMap<ValueId, Lattice>, HashSet<BlockId>) {
+    fn solve_for_test(&self, fn_ir: &FnIR) -> (FxHashMap<ValueId, Lattice>, FxHashSet<BlockId>) {
         let (lattice, executable_blocks, _edges) = self.solve(fn_ir);
         (lattice, executable_blocks)
     }
@@ -127,8 +128,8 @@ impl MirSCCP {
         &self,
         bid: BlockId,
         fn_ir: &FnIR,
-        lattice: &mut HashMap<ValueId, Lattice>,
-        executable_edges: &HashSet<(BlockId, BlockId)>,
+        lattice: &mut FxHashMap<ValueId, Lattice>,
+        executable_edges: &FxHashSet<(BlockId, BlockId)>,
         flow_worklist: &mut VecDeque<(BlockId, BlockId)>,
         ssa_worklist: &mut VecDeque<ValueId>,
     ) {
@@ -194,8 +195,8 @@ impl MirSCCP {
         &self,
         val_id: ValueId,
         fn_ir: &FnIR,
-        lattice: &mut HashMap<ValueId, Lattice>,
-        executable_edges: &HashSet<(BlockId, BlockId)>,
+        lattice: &mut FxHashMap<ValueId, Lattice>,
+        executable_edges: &FxHashSet<(BlockId, BlockId)>,
         ssa_worklist: &mut VecDeque<ValueId>,
     ) {
         let val = &fn_ir.values[val_id];
@@ -327,8 +328,8 @@ impl MirSCCP {
         &self,
         base: ValueId,
         fn_ir: &FnIR,
-        lattice: &mut HashMap<ValueId, Lattice>,
-        executable_edges: &HashSet<(BlockId, BlockId)>,
+        lattice: &mut FxHashMap<ValueId, Lattice>,
+        executable_edges: &FxHashSet<(BlockId, BlockId)>,
         ssa_worklist: &mut VecDeque<ValueId>,
     ) -> Lattice {
         self.visit_value(base, fn_ir, lattice, executable_edges, ssa_worklist);
@@ -346,8 +347,8 @@ impl MirSCCP {
         base: ValueId,
         idx: ValueId,
         fn_ir: &FnIR,
-        lattice: &mut HashMap<ValueId, Lattice>,
-        executable_edges: &HashSet<(BlockId, BlockId)>,
+        lattice: &mut FxHashMap<ValueId, Lattice>,
+        executable_edges: &FxHashSet<(BlockId, BlockId)>,
         ssa_worklist: &mut VecDeque<ValueId>,
     ) -> Lattice {
         self.visit_value(base, fn_ir, lattice, executable_edges, ssa_worklist);
@@ -373,8 +374,8 @@ impl MirSCCP {
         callee: &str,
         args: &[ValueId],
         fn_ir: &FnIR,
-        lattice: &mut HashMap<ValueId, Lattice>,
-        executable_edges: &HashSet<(BlockId, BlockId)>,
+        lattice: &mut FxHashMap<ValueId, Lattice>,
+        executable_edges: &FxHashSet<(BlockId, BlockId)>,
         ssa_worklist: &mut VecDeque<ValueId>,
     ) -> Lattice {
         let mut arg_states = Vec::with_capacity(args.len());
@@ -398,7 +399,7 @@ impl MirSCCP {
         &self,
         id: ValueId,
         fn_ir: &FnIR,
-        lattice: &HashMap<ValueId, Lattice>,
+        lattice: &FxHashMap<ValueId, Lattice>,
     ) -> Option<i64> {
         let state = lattice.get(&id).cloned().unwrap_or(Lattice::Top);
         if let Lattice::Constant(lit) = state {
@@ -434,7 +435,7 @@ impl MirSCCP {
         base: ValueId,
         index1: i64,
         fn_ir: &FnIR,
-        lattice: &HashMap<ValueId, Lattice>,
+        lattice: &FxHashMap<ValueId, Lattice>,
     ) -> Option<Lit> {
         if index1 < 1 {
             return None;
@@ -613,7 +614,7 @@ impl MirSCCP {
         &self,
         id: ValueId,
         fn_ir: &FnIR,
-        lattice: &HashMap<ValueId, Lattice>,
+        lattice: &FxHashMap<ValueId, Lattice>,
     ) -> Option<Lit> {
         if let Some(Lattice::Constant(lit)) = lattice.get(&id) {
             return Some(lit.clone());
@@ -628,7 +629,7 @@ impl MirSCCP {
         &self,
         id: ValueId,
         fn_ir: &FnIR,
-        lattice: &HashMap<ValueId, Lattice>,
+        lattice: &FxHashMap<ValueId, Lattice>,
     ) -> Option<i64> {
         let lit = self.const_lit_from_value(id, fn_ir, lattice)?;
         match lit {
@@ -641,7 +642,7 @@ impl MirSCCP {
         &self,
         id: ValueId,
         fn_ir: &FnIR,
-        lattice: &HashMap<ValueId, Lattice>,
+        lattice: &FxHashMap<ValueId, Lattice>,
     ) -> Option<i64> {
         let lit = self.const_lit_from_value(id, fn_ir, lattice)?;
         match lit {
@@ -680,7 +681,7 @@ impl MirSCCP {
         &self,
         val_id: ValueId,
         fn_ir: &FnIR,
-        lattice: &mut HashMap<ValueId, Lattice>,
+        lattice: &mut FxHashMap<ValueId, Lattice>,
         ssa_worklist: &mut VecDeque<ValueId>,
     ) -> Lattice {
         let mut state = lattice.get(&val_id).cloned().unwrap_or(Lattice::Top);
@@ -705,8 +706,8 @@ impl MirSCCP {
     fn apply_results(
         &self,
         fn_ir: &mut FnIR,
-        lattice: &HashMap<ValueId, Lattice>,
-        executable: &HashSet<BlockId>,
+        lattice: &FxHashMap<ValueId, Lattice>,
+        executable: &FxHashSet<BlockId>,
     ) -> bool {
         let mut changed = false;
 
@@ -751,7 +752,7 @@ impl MirSCCP {
         changed
     }
 
-    fn build_user_map(&self, fn_ir: &FnIR, users: &mut HashMap<ValueId, Vec<User>>) {
+    fn build_user_map(&self, fn_ir: &FnIR, users: &mut FxHashMap<ValueId, Vec<User>>) {
         for blk in &fn_ir.blocks {
             match &blk.term {
                 Terminator::If { cond, .. } => {

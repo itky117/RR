@@ -1,7 +1,7 @@
 use crate::mir::opt::loop_analysis::{LoopAnalyzer, LoopInfo, build_pred_map};
 use crate::mir::*;
 use crate::syntax::ast::BinOp;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct VOptStats {
@@ -20,12 +20,12 @@ pub fn optimize(fn_ir: &mut FnIR) -> bool {
 }
 
 pub fn optimize_with_stats(fn_ir: &mut FnIR) -> VOptStats {
-    optimize_with_stats_with_whitelist(fn_ir, &HashSet::new())
+    optimize_with_stats_with_whitelist(fn_ir, &FxHashSet::default())
 }
 
 pub fn optimize_with_stats_with_whitelist(
     fn_ir: &mut FnIR,
-    user_call_whitelist: &HashSet<String>,
+    user_call_whitelist: &FxHashSet<String>,
 ) -> VOptStats {
     let mut stats = VOptStats::default();
     let analyzer = LoopAnalyzer::new(fn_ir);
@@ -429,7 +429,7 @@ fn match_map(fn_ir: &FnIR, lp: &LoopInfo) -> Option<VectorPlan> {
 fn match_conditional_map(
     fn_ir: &FnIR,
     lp: &LoopInfo,
-    user_call_whitelist: &HashSet<String>,
+    user_call_whitelist: &FxHashSet<String>,
 ) -> Option<VectorPlan> {
     let iv = lp.iv.as_ref()?;
     let iv_phi = iv.phi_val;
@@ -623,7 +623,7 @@ fn match_shifted_map(fn_ir: &FnIR, lp: &LoopInfo) -> Option<VectorPlan> {
 fn match_call_map(
     fn_ir: &FnIR,
     lp: &LoopInfo,
-    user_call_whitelist: &HashSet<String>,
+    user_call_whitelist: &FxHashSet<String>,
 ) -> Option<VectorPlan> {
     let iv = lp.iv.as_ref()?;
     let iv_phi = iv.phi_val;
@@ -705,7 +705,7 @@ pub(crate) fn is_builtin_vector_safe_call(callee: &str, arity: usize) -> bool {
     }
 }
 
-fn is_vector_safe_call(callee: &str, arity: usize, user_call_whitelist: &HashSet<String>) -> bool {
+fn is_vector_safe_call(callee: &str, arity: usize, user_call_whitelist: &FxHashSet<String>) -> bool {
     is_builtin_vector_safe_call(callee, arity) || user_call_whitelist.contains(callee)
 }
 
@@ -744,14 +744,14 @@ fn is_loop_invariant_scalar_expr(
     fn_ir: &FnIR,
     root: ValueId,
     iv_phi: ValueId,
-    user_call_whitelist: &HashSet<String>,
+    user_call_whitelist: &FxHashSet<String>,
 ) -> bool {
     fn rec(
         fn_ir: &FnIR,
         root: ValueId,
         iv_phi: ValueId,
-        user_call_whitelist: &HashSet<String>,
-        seen: &mut HashSet<ValueId>,
+        user_call_whitelist: &FxHashSet<String>,
+        seen: &mut FxHashSet<ValueId>,
     ) -> bool {
         let root = canonical_value(fn_ir, root);
         if !seen.insert(root) {
@@ -791,7 +791,7 @@ fn is_loop_invariant_scalar_expr(
         root,
         iv_phi,
         user_call_whitelist,
-        &mut HashSet::new(),
+        &mut FxHashSet::default(),
     )
 }
 
@@ -800,15 +800,15 @@ fn is_vector_safe_call_chain_expr(
     root: ValueId,
     iv_phi: ValueId,
     lp: &LoopInfo,
-    user_call_whitelist: &HashSet<String>,
+    user_call_whitelist: &FxHashSet<String>,
 ) -> bool {
     fn rec(
         fn_ir: &FnIR,
         root: ValueId,
         iv_phi: ValueId,
         _lp: &LoopInfo,
-        user_call_whitelist: &HashSet<String>,
-        seen: &mut HashSet<ValueId>,
+        user_call_whitelist: &FxHashSet<String>,
+        seen: &mut FxHashSet<ValueId>,
     ) -> bool {
         let root = canonical_value(fn_ir, root);
         if is_iv_equivalent(fn_ir, root, iv_phi) {
@@ -857,7 +857,7 @@ fn is_vector_safe_call_chain_expr(
         iv_phi,
         lp,
         user_call_whitelist,
-        &mut HashSet::new(),
+        &mut FxHashSet::default(),
     )
 }
 
@@ -1148,7 +1148,7 @@ fn apply_vectorization(fn_ir: &mut FnIR, lp: &LoopInfo, plan: VectorPlan) -> boo
                         Some(v) => v,
                         None => return false,
                     };
-                    let mut memo = HashMap::new();
+                    let mut memo = FxHashMap::default();
                     let input_vec = match materialize_vector_expr(
                         fn_ir, vec_expr, iv_phi, idx_vec, lp, &mut memo, false, true,
                     ) {
@@ -1172,7 +1172,7 @@ fn apply_vectorization(fn_ir: &mut FnIR, lp: &LoopInfo, plan: VectorPlan) -> boo
                     Some(v) => v,
                     None => return false,
                 };
-                let mut memo = HashMap::new();
+                let mut memo = FxHashMap::default();
                 let input_vec = match materialize_vector_expr(
                     fn_ir, vec_expr, iv_phi, idx_vec, lp, &mut memo, false, true,
                 ) {
@@ -1315,7 +1315,7 @@ fn apply_vectorization(fn_ir: &mut FnIR, lp: &LoopInfo, plan: VectorPlan) -> boo
                 None => return false,
             };
             let dest_ref = resolve_materialized_value(fn_ir, dest);
-            let mut memo = HashMap::new();
+            let mut memo = FxHashMap::default();
             let cond_vec = match materialize_vector_expr(
                 fn_ir, cond, iv_phi, idx_vec, lp, &mut memo, true, true,
             ) {
@@ -1480,7 +1480,7 @@ fn apply_vectorization(fn_ir: &mut FnIR, lp: &LoopInfo, plan: VectorPlan) -> boo
                 Some(v) => v,
                 None => return false,
             };
-            let mut memo = HashMap::new();
+            let mut memo = FxHashMap::default();
             let mut mapped_args = Vec::with_capacity(args.len());
             let mut vector_args = Vec::new();
             for (arg_i, arg) in args.into_iter().enumerate() {
@@ -1950,7 +1950,7 @@ fn is_iv_minus_one(fn_ir: &FnIR, idx: ValueId, iv_phi: ValueId) -> bool {
 }
 
 fn expr_reads_base(fn_ir: &FnIR, root: ValueId, base: ValueId) -> bool {
-    fn rec(fn_ir: &FnIR, root: ValueId, base: ValueId, seen: &mut HashSet<ValueId>) -> bool {
+    fn rec(fn_ir: &FnIR, root: ValueId, base: ValueId, seen: &mut FxHashSet<ValueId>) -> bool {
         if !seen.insert(root) {
             return false;
         }
@@ -1986,11 +1986,11 @@ fn expr_reads_base(fn_ir: &FnIR, root: ValueId, base: ValueId) -> bool {
             _ => false,
         }
     }
-    rec(fn_ir, root, base, &mut HashSet::new())
+    rec(fn_ir, root, base, &mut FxHashSet::default())
 }
 
 fn expr_has_iv_dependency(fn_ir: &FnIR, root: ValueId, iv_phi: ValueId) -> bool {
-    fn rec(fn_ir: &FnIR, root: ValueId, iv_phi: ValueId, seen: &mut HashSet<ValueId>) -> bool {
+    fn rec(fn_ir: &FnIR, root: ValueId, iv_phi: ValueId, seen: &mut FxHashSet<ValueId>) -> bool {
         if is_iv_equivalent(fn_ir, root, iv_phi) {
             return true;
         }
@@ -2017,7 +2017,7 @@ fn expr_has_iv_dependency(fn_ir: &FnIR, root: ValueId, iv_phi: ValueId) -> bool 
             _ => false,
         }
     }
-    rec(fn_ir, root, iv_phi, &mut HashSet::new())
+    rec(fn_ir, root, iv_phi, &mut FxHashSet::default())
 }
 
 fn is_vectorizable_expr(
@@ -2035,7 +2035,7 @@ fn is_vectorizable_expr(
         lp: &LoopInfo,
         allow_any_base: bool,
         require_safe_index: bool,
-        seen: &mut HashSet<ValueId>,
+        seen: &mut FxHashSet<ValueId>,
     ) -> bool {
         if root == iv_phi {
             return true;
@@ -2143,7 +2143,7 @@ fn is_vectorizable_expr(
         lp,
         allow_any_base,
         require_safe_index,
-        &mut HashSet::new(),
+        &mut FxHashSet::default(),
     )
 }
 
@@ -2152,15 +2152,15 @@ fn is_condition_vectorizable(
     root: ValueId,
     iv_phi: ValueId,
     lp: &LoopInfo,
-    user_call_whitelist: &HashSet<String>,
+    user_call_whitelist: &FxHashSet<String>,
 ) -> bool {
     fn rec(
         fn_ir: &FnIR,
         root: ValueId,
         iv_phi: ValueId,
         lp: &LoopInfo,
-        user_call_whitelist: &HashSet<String>,
-        seen: &mut HashSet<ValueId>,
+        user_call_whitelist: &FxHashSet<String>,
+        seen: &mut FxHashSet<ValueId>,
     ) -> bool {
         if root == iv_phi {
             return true;
@@ -2206,7 +2206,7 @@ fn is_condition_vectorizable(
         iv_phi,
         lp,
         user_call_whitelist,
-        &mut HashSet::new(),
+        &mut FxHashSet::default(),
     )
 }
 
@@ -2230,7 +2230,7 @@ fn materialize_vector_expr(
     iv_phi: ValueId,
     idx_vec: ValueId,
     lp: &LoopInfo,
-    memo: &mut HashMap<ValueId, ValueId>,
+    memo: &mut FxHashMap<ValueId, ValueId>,
     allow_any_base: bool,
     require_safe_index: bool,
 ) -> Option<ValueId> {
@@ -2493,7 +2493,7 @@ fn vector_length_key(fn_ir: &FnIR, root: ValueId) -> Option<ValueId> {
         src
     }
 
-    fn rec(fn_ir: &FnIR, root: ValueId, seen: &mut HashSet<ValueId>) -> Option<ValueId> {
+    fn rec(fn_ir: &FnIR, root: ValueId, seen: &mut FxHashSet<ValueId>) -> Option<ValueId> {
         let root = canonical_value(fn_ir, root);
         if !seen.insert(root) {
             return None;
@@ -2523,7 +2523,7 @@ fn vector_length_key(fn_ir: &FnIR, root: ValueId) -> Option<ValueId> {
             _ => None,
         }
     }
-    rec(fn_ir, root, &mut HashSet::new())
+    rec(fn_ir, root, &mut FxHashSet::default())
 }
 
 fn same_length_proven(fn_ir: &FnIR, a: ValueId, b: ValueId) -> bool {
@@ -2590,7 +2590,7 @@ fn is_value_equivalent(fn_ir: &FnIR, a: ValueId, b: ValueId) -> bool {
 }
 
 fn canonical_value(fn_ir: &FnIR, mut vid: ValueId) -> ValueId {
-    let mut seen = std::collections::HashSet::new();
+    let mut seen = FxHashSet::default();
     loop {
         if !seen.insert(vid) {
             return vid;
@@ -2602,7 +2602,7 @@ fn canonical_value(fn_ir: &FnIR, mut vid: ValueId) -> ValueId {
                     vid = first;
                     continue;
                 }
-                let mut unique_non_self = std::collections::HashSet::new();
+                let mut unique_non_self = FxHashSet::default();
                 for (v, _) in args {
                     if *v != vid {
                         unique_non_self.insert(*v);
@@ -2699,7 +2699,7 @@ fn resolve_load_alias_value(fn_ir: &FnIR, vid: ValueId) -> ValueId {
     }
 
     let mut cur = canonical_value(fn_ir, vid);
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     while seen.insert(cur) {
         match &fn_ir.values[cur].kind {
             ValueKind::Load { var } => {

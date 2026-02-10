@@ -1,13 +1,13 @@
 use crate::mir::*;
 use crate::syntax::ast::{BinOp, Lit};
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Debug, Clone)]
 pub struct LoopInfo {
     pub header: BlockId,
     pub latch: BlockId,         // The block that jumps back to header
     pub exits: Vec<BlockId>,    // Blocks outside loop targeted by loop blocks
-    pub body: HashSet<BlockId>, // All blocks in the loop
+    pub body: FxHashSet<BlockId>, // All blocks in the loop
 
     pub is_seq_len: Option<ValueId>,   // If it's 1:N, stores N
     pub is_seq_along: Option<ValueId>, // If it's seq_along(X), stores X
@@ -25,7 +25,7 @@ pub struct InductionVar {
 
 pub struct LoopAnalyzer<'a> {
     fn_ir: &'a FnIR,
-    preds: HashMap<BlockId, Vec<BlockId>>,
+    preds: FxHashMap<BlockId, Vec<BlockId>>,
 }
 
 impl<'a> LoopAnalyzer<'a> {
@@ -60,7 +60,7 @@ impl<'a> LoopAnalyzer<'a> {
 
     fn analyze_natural_loop(&self, header: BlockId, latch: BlockId) -> Option<LoopInfo> {
         // Collect body blocks (Reach backwards from latch to header)
-        let mut body = HashSet::new();
+        let mut body = FxHashSet::default();
         let mut stack = vec![latch];
         body.insert(header);
         body.insert(latch);
@@ -218,13 +218,13 @@ impl<'a> LoopAnalyzer<'a> {
         }
     }
 
-    fn compute_dominators(&self) -> HashMap<BlockId, HashSet<BlockId>> {
+    fn compute_dominators(&self) -> FxHashMap<BlockId, FxHashSet<BlockId>> {
         // Naive Iterative Dominators
         // Dom(n) = {n} U (Inter(Dom(p)) for p in preds(n))
         // Init: Dom(entry) = {entry}, Dom(others) = All Blocks
 
-        let all_blocks: HashSet<BlockId> = (0..self.fn_ir.blocks.len()).collect();
-        let mut doms: HashMap<BlockId, HashSet<BlockId>> = HashMap::new();
+        let all_blocks: FxHashSet<BlockId> = (0..self.fn_ir.blocks.len()).collect();
+        let mut doms: FxHashMap<BlockId, FxHashSet<BlockId>> = FxHashMap::default();
 
         // Init
         doms.insert(
@@ -251,7 +251,7 @@ impl<'a> LoopAnalyzer<'a> {
                 } // Unreachable
 
                 // Intersect preds
-                let mut new_dom: Option<HashSet<BlockId>> = None;
+                let mut new_dom: Option<FxHashSet<BlockId>> = None;
                 for p in preds {
                     if let Some(p_dom) = doms.get(&p) {
                         match new_dom {
@@ -275,7 +275,7 @@ impl<'a> LoopAnalyzer<'a> {
 
     fn dominates(
         &self,
-        doms: &HashMap<BlockId, HashSet<BlockId>>,
+        doms: &FxHashMap<BlockId, FxHashSet<BlockId>>,
         master: BlockId,
         slave: BlockId,
     ) -> bool {
@@ -287,8 +287,8 @@ impl<'a> LoopAnalyzer<'a> {
     }
 }
 
-pub fn build_pred_map(fn_ir: &FnIR) -> HashMap<BlockId, Vec<BlockId>> {
-    let mut map = HashMap::new();
+pub fn build_pred_map(fn_ir: &FnIR) -> FxHashMap<BlockId, Vec<BlockId>> {
+    let mut map = FxHashMap::default();
     for (src, blk) in fn_ir.blocks.iter().enumerate() {
         let targets = match &blk.term {
             Terminator::Goto(t) => vec![*t],

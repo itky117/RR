@@ -1,3 +1,5 @@
+
+use rustc_hash::FxHashMap;
 use crate::utils::Span;
 
 // ----- IDs -----
@@ -76,7 +78,7 @@ pub struct HirFn {
     pub body: HirBlock,
     pub attrs: HirFnAttrs,
     pub span: Span,
-    pub local_names: std::collections::HashMap<LocalId, String>,
+    pub local_names: FxHashMap<LocalId, String>,
     pub public: bool, // export modifier
 }
 

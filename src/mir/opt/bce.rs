@@ -3,11 +3,11 @@ use crate::mir::analyze::range::{RangeInterval, SymbolicBound};
 use crate::mir::analyze::range::{analyze_ranges, ensure_value_range, transfer_instr};
 use crate::mir::opt::loop_analysis::LoopAnalyzer;
 use crate::mir::*;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 #[derive(Clone)]
 struct CanonicalIvRule {
-    body: std::collections::HashSet<BlockId>,
+    body: FxHashSet<BlockId>,
     iv: ValueId,
     // iv <= len(base) + limit_off
     limit: Option<(ValueId, i64)>,
@@ -63,14 +63,14 @@ pub fn optimize(fn_ir: &mut FnIR) -> bool {
     }
 
     // Pass 2: Handle Index1D loads, including nested loads inside expression trees.
-    let mut safe_values = HashSet::new();
-    let mut non_na_values = HashSet::new();
+    let mut safe_values = FxHashSet::default();
+    let mut non_na_values = FxHashSet::default();
     for bid in 0..fn_ir.blocks.len() {
         let mut cur_facts = bb_facts[bid].clone();
         for instr in &fn_ir.blocks[bid].instrs {
             match instr {
                 Instr::Assign { src, .. } | Instr::Eval { val: src, .. } => {
-                    let mut seen = HashSet::new();
+                    let mut seen = FxHashSet::default();
                     collect_index_safety(
                         *src,
                         bid,
@@ -84,7 +84,7 @@ pub fn optimize(fn_ir: &mut FnIR) -> bool {
                     );
                 }
                 Instr::StoreIndex1D { base, idx, val, .. } => {
-                    let mut seen = HashSet::new();
+                    let mut seen = FxHashSet::default();
                     collect_index_safety(
                         *base,
                         bid,
@@ -122,7 +122,7 @@ pub fn optimize(fn_ir: &mut FnIR) -> bool {
                 Instr::StoreIndex2D {
                     base, r, c, val, ..
                 } => {
-                    let mut seen = HashSet::new();
+                    let mut seen = FxHashSet::default();
                     collect_index_safety(
                         *base,
                         bid,
@@ -377,9 +377,9 @@ fn collect_index_safety(
     fn_ir: &FnIR,
     canonical_ivs: &[CanonicalIvRule],
     na_states: &[NaState],
-    safe_values: &mut HashSet<ValueId>,
-    non_na_values: &mut HashSet<ValueId>,
-    seen: &mut HashSet<ValueId>,
+    safe_values: &mut FxHashSet<ValueId>,
+    non_na_values: &mut FxHashSet<ValueId>,
+    seen: &mut FxHashSet<ValueId>,
 ) {
     if !seen.insert(vid) {
         return;

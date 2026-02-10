@@ -1,6 +1,6 @@
 #![no_main]
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use RR::codegen::mir_emit::MirEmitter;
 use RR::hir::def::{HirItem, HirProgram, ModuleId};
@@ -28,7 +28,7 @@ fuzz_target!(|data: &[u8]| {
         Err(_) => return,
     };
 
-    let mut known_fn_arities: HashMap<String, usize> = HashMap::new();
+    let mut known_fn_arities: FxHashMap<String, usize> = FxHashMap::default();
     for item in &hir_mod.items {
         if let HirItem::Fn(f) = item {
             if let Some(name) = symbols.get(&f.name).cloned() {
@@ -46,7 +46,7 @@ fuzz_target!(|data: &[u8]| {
         Err(_) => return,
     };
 
-    let mut all_fns = HashMap::new();
+    let mut all_fns = FxHashMap::default();
     for module in desugared.modules {
         for item in module.items {
             if let HirItem::Fn(f) = item {

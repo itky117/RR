@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use RR::hir::def::{HirItem, HirProgram, ModuleId};
@@ -8,7 +8,7 @@ use RR::mir::lower_hir::MirLowerer;
 use RR::mir::opt::TachyonEngine;
 use RR::syntax::parse::Parser;
 
-fn build_mir_without_semantic_gate(src: &str) -> HashMap<String, RR::mir::FnIR> {
+fn build_mir_without_semantic_gate(src: &str) -> FxHashMap<String, RR::mir::FnIR> {
     let mut parser = Parser::new(src);
     let ast = parser
         .parse_program()
@@ -19,7 +19,7 @@ fn build_mir_without_semantic_gate(src: &str) -> HashMap<String, RR::mir::FnIR> 
         .lower_module(ast, ModuleId(0))
         .expect("hir lowering must succeed for regression input");
 
-    let mut known_fn_arities: HashMap<String, usize> = HashMap::new();
+    let mut known_fn_arities: FxHashMap<String, usize> = FxHashMap::default();
     for item in &hir_mod.items {
         if let HirItem::Fn(f) = item
             && let Some(name) = symbols.get(&f.name).cloned()
@@ -35,7 +35,7 @@ fn build_mir_without_semantic_gate(src: &str) -> HashMap<String, RR::mir::FnIR> 
         })
         .expect("desugar must succeed for regression input");
 
-    let mut all_fns = HashMap::new();
+    let mut all_fns = FxHashMap::default();
     for module in desugared.modules {
         for item in module.items {
             if let HirItem::Fn(f) = item {

@@ -1,16 +1,17 @@
 use crate::mir::flow::Facts;
 use crate::mir::*;
 use crate::utils::Span;
-use std::collections::{HashMap, HashSet, VecDeque};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::collections::VecDeque;
 use std::env;
 
 pub struct MirInliner;
 
 #[derive(Default)]
 struct InlineMap {
-    v: HashMap<ValueId, ValueId>,
-    b: HashMap<BlockId, BlockId>,
-    vars: HashMap<VarId, VarId>,
+    v: FxHashMap<ValueId, ValueId>,
+    b: FxHashMap<BlockId, BlockId>,
+    vars: FxHashMap<VarId, VarId>,
     inline_tag: String,
 }
 
@@ -30,7 +31,7 @@ impl MirInliner {
         Self
     }
 
-    pub fn optimize(&self, all_fns: &mut HashMap<String, FnIR>) -> bool {
+    pub fn optimize(&self, all_fns: &mut FxHashMap<String, FnIR>) -> bool {
         if Self::inline_disabled() {
             return false;
         }
@@ -60,7 +61,7 @@ impl MirInliner {
         global_changed
     }
 
-    fn inline_calls(&self, caller: &mut FnIR, all_fns: &HashMap<String, FnIR>) -> bool {
+    fn inline_calls(&self, caller: &mut FnIR, all_fns: &FxHashMap<String, FnIR>) -> bool {
         let mut changed = false;
 
         if self.inline_value_calls(caller, all_fns) {
@@ -114,7 +115,7 @@ impl MirInliner {
         &self,
         caller: &FnIR,
         instr: &Instr,
-        all_fns: &HashMap<String, FnIR>,
+        all_fns: &FxHashMap<String, FnIR>,
     ) -> Option<(String, Vec<ValueId>, ValueId, Option<VarId>, Span)> {
         match instr {
             Instr::Assign { dst, src, span, .. } => {
@@ -253,15 +254,15 @@ impl MirInliner {
         call_span: Span,
     ) {
         let mut map = InlineMap::default();
-        let mut mutated_param_inits: HashMap<VarId, ValueId> = HashMap::new();
+        let mut mutated_param_inits: FxHashMap<VarId, ValueId> = FxHashMap::default();
 
-        let mut param_val_ids: HashMap<usize, ValueId> = HashMap::new();
+        let mut param_val_ids: FxHashMap<usize, ValueId> = FxHashMap::default();
         for (vid, val) in callee.values.iter().enumerate() {
             if let ValueKind::Param { index } = val.kind {
                 param_val_ids.insert(index, vid);
             }
         }
-        let mut mutated_params: HashSet<usize> = HashSet::new();
+        let mut mutated_params: FxHashSet<usize> = FxHashSet::default();
         for blk in &callee.blocks {
             for instr in &blk.instrs {
                 if let Instr::Assign { dst, src, .. } = instr {
@@ -469,7 +470,7 @@ impl MirInliner {
         }
     }
 
-    fn inline_value_calls(&self, caller: &mut FnIR, all_fns: &HashMap<String, FnIR>) -> bool {
+    fn inline_value_calls(&self, caller: &mut FnIR, all_fns: &FxHashMap<String, FnIR>) -> bool {
         for val_id in 0..caller.values.len() {
             let (callee_name, args) = match &caller.values[val_id].kind {
                 ValueKind::Call { callee, args, .. } => {
@@ -533,8 +534,8 @@ impl MirInliner {
         ret
     }
 
-    fn reachable_blocks(&self, callee: &FnIR) -> HashSet<BlockId> {
-        let mut reachable = HashSet::new();
+    fn reachable_blocks(&self, callee: &FnIR) -> FxHashSet<BlockId> {
+        let mut reachable = FxHashSet::default();
         let mut queue = VecDeque::new();
         queue.push_back(callee.entry);
         reachable.insert(callee.entry);
@@ -570,18 +571,18 @@ impl MirInliner {
         ret_val: ValueId,
         args: &[ValueId],
     ) -> Option<ValueId> {
-        let mut map: HashMap<ValueId, ValueId> = HashMap::new();
+        let mut map: FxHashMap<ValueId, ValueId> = FxHashMap::default();
 
         let clone_value = |vid: ValueId,
                            caller: &mut FnIR,
-                           map: &mut HashMap<ValueId, ValueId>,
+                           map: &mut FxHashMap<ValueId, ValueId>,
                            args: &[ValueId]|
          -> Option<ValueId> {
             fn clone_rec(
                 vid: ValueId,
                 caller: &mut FnIR,
                 callee: &FnIR,
-                map: &mut HashMap<ValueId, ValueId>,
+                map: &mut FxHashMap<ValueId, ValueId>,
                 args: &[ValueId],
             ) -> Option<ValueId> {
                 if let Some(&mapped) = map.get(&vid) {
