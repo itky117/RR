@@ -53,8 +53,8 @@ fn build_mir_without_semantic_gate(src: &str) -> FxHashMap<String, RR::mir::FnIR
                     fn_name.clone(),
                     params,
                     var_names,
-                    symbols.clone(),
-                    known_fn_arities.clone(),
+                    &symbols,
+                    &known_fn_arities,
                 );
                 if let Ok(fn_ir) = mir_lowerer.lower_fn(f) {
                     all_fns.insert(fn_name, fn_ir);
