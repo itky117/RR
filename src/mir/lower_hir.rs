@@ -13,7 +13,7 @@ struct LoopTargets {
     continue_step: Option<(hir::LocalId, ValueId)>,
 }
 
-pub struct MirLowerer {
+pub struct MirLowerer<'a> {
     fn_ir: FnIR,
 
     // SSA construction state.
@@ -31,19 +31,19 @@ pub struct MirLowerer {
     // Name mapping for codegen.
     var_names: FxHashMap<hir::LocalId, String>,
 
-    // Symbol table snapshot.
-    symbols: FxHashMap<hir::SymbolId, String>,
-    known_functions: FxHashMap<String, usize>,
+    // Symbol table (borrowed from caller).
+    symbols: &'a FxHashMap<hir::SymbolId, String>,
+    known_functions: &'a FxHashMap<String, usize>,
     loop_stack: Vec<LoopTargets>,
 }
 
-impl MirLowerer {
+impl<'a> MirLowerer<'a> {
     pub fn new(
         name: String,
         params: Vec<String>,
         var_names: FxHashMap<hir::LocalId, String>,
-        symbols: FxHashMap<hir::SymbolId, String>,
-        known_functions: FxHashMap<String, usize>,
+        symbols: &'a FxHashMap<hir::SymbolId, String>,
+        known_functions: &'a FxHashMap<String, usize>,
     ) -> Self {
         let mut fn_ir = FnIR::new(name, params.clone());
         let entry = fn_ir.add_block();

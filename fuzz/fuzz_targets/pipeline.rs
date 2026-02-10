@@ -64,8 +64,8 @@ fuzz_target!(|data: &[u8]| {
                     fn_name.clone(),
                     params,
                     var_names,
-                    symbols.clone(),
-                    known_fn_arities.clone(),
+                    &symbols,
+                    &known_fn_arities,
                 );
                 let Ok(fn_ir) = mir_lowerer.lower_fn(f) else {
                     continue;

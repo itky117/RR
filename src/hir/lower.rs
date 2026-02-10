@@ -19,6 +19,7 @@ pub struct Lowerer {
 
     // Global Symbol Table
     symbols: FxHashMap<SymbolId, String>,
+    symbols_rev: FxHashMap<String, SymbolId>,
     // Collected lowering warnings (reported by caller)
     warnings: Vec<String>,
     // If true, assignment to undeclared names is an error.
@@ -37,6 +38,7 @@ impl Lowerer {
             in_tidy: false,
             local_names: FxHashMap::default(),
             symbols: FxHashMap::default(),
+            symbols_rev: FxHashMap::default(),
             warnings: Vec::new(),
             strict_let,
             pending_fns: Vec::new(),
@@ -90,15 +92,14 @@ impl Lowerer {
     }
 
     fn intern_symbol(&mut self, name: &str) -> SymbolId {
-        // Proper interning: check existing
-        for (id, existing_name) in &self.symbols {
-            if existing_name == name {
-                return *id;
-            }
+        if let Some(&id) = self.symbols_rev.get(name) {
+            return id;
         }
         let id = SymbolId(self.next_sym_id);
         self.next_sym_id += 1;
-        self.symbols.insert(id, name.to_string());
+        let owned = name.to_string();
+        self.symbols.insert(id, owned.clone());
+        self.symbols_rev.insert(owned, id);
         id
     }
 

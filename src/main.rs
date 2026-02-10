@@ -700,8 +700,8 @@ fn compile(
                         fn_name.clone(),
                         params,
                         var_names,
-                        global_symbols.clone(),
-                        known_fn_arities.clone(),
+                        &global_symbols,
+                        &known_fn_arities,
                     );
                     let fn_ir = match lowerer.lower_fn(f) {
                         Ok(ir) => ir,
@@ -739,8 +739,8 @@ fn compile(
                 top_fn_name.clone(),
                 Vec::new(),
                 FxHashMap::default(),
-                global_symbols.clone(),
-                known_fn_arities.clone(),
+                &global_symbols,
+                &known_fn_arities,
             );
             let fn_ir = match lowerer.lower_fn(top_fn) {
                 Ok(ir) => ir,
