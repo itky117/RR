@@ -16,6 +16,23 @@ It is organized by usage first, then internals.
 - [`docs/testing.md`](testing.md)
 - [`docs/compatibility.md`](compatibility.md)
 
+## VitePress
+
+Docs are served with VitePress from the `docs/` directory.
+
+```bash
+cd docs
+pnpm install
+pnpm docs:dev
+```
+
+Build and preview:
+
+```bash
+pnpm docs:build
+pnpm docs:preview
+```
+
 ## Project Snapshot
 
 - Surface language: R-first syntax (`<-`, `function`, dotted identifiers) with legacy aliases (`let`, `fn`)

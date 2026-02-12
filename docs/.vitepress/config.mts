@@ -6,12 +6,19 @@ export default defineConfig({
   base: '/RR/',
   themeConfig: {
     nav: [
+      { text: 'Home', link: '/' },
       { text: 'Guide', link: '/getting-started' },
-      { text: 'Language', link: '/language' },
+      { text: 'Reference', link: '/language' },
       { text: 'Internals', link: '/compiler-pipeline' },
     ],
 
     sidebar: [
+      {
+        text: 'Overview',
+        items: [
+          { text: 'Docs Home', link: '/' },
+        ],
+      },
       {
         text: 'Guide',
         items: [
@@ -21,9 +28,9 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Language',
+        text: 'Reference',
         items: [
-          { text: 'Language Reference', link: '/language' },
+          { text: 'Language Reference (Code-Based)', link: '/language' },
           { text: 'Compatibility & Limits', link: '/compatibility' },
         ],
       },

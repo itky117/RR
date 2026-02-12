@@ -21,7 +21,7 @@ cargo run -- --help
 
 Create `main.rr`:
 
-```rr
+```r
 main <- function() {
   x <- 1 + 2
   print(x)

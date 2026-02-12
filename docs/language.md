@@ -1,160 +1,229 @@
-# Language Reference
+﻿# Language Reference
 
-This page describes RR syntax and semantics based on `src/syntax/*`, `src/hir/*`, and MIR lowering rules.
+This page documents RR language behavior from implementation code, not aspirational design.
+Primary sources: `src/syntax/{token,lex,parse,ast}.rs`, `src/hir/lower.rs`, `src/mir/lower_hir.rs`, and syntax-focused tests.
 
 ## Keywords
 
-- `fn`, `function` (alias), `let`
+- `fn`, `function` (`function` lexes as `fn`)
+- `let`
 - `if`, `else`
 - `while`, `for`, `in`
 - `return`, `break`, `next`
 - `match`
 - `import`, `export`
-- literals: `true/false`, `null`, `na` (case-insensitive forms supported for booleans/null/na in lexer)
 
-## Literals
+Literal keywords:
 
-- Integer: `1`, `42`, `1L`
-- Float: `1.0`, `.5`
-- String: `"text"` (with escaped forms)
-- Boolean: `true`, `false`
-- Null: `null`
-- NA: `na`
-- Vector literal: `[1, 2, 3]`
-- Record literal: `{a: 1, b: 2}`
+- booleans: `true`, `false`, `TRUE`, `FALSE`
+- null: `null`, `NULL`
+- missing: `na`, `NA`
+
+## Lexical Rules
+
+### Numbers
+
+- Integer literals: `1`, `42`, `1L`, `1l`
+- Float literals: `1.0`, `.5`
+
+Current lexer limits:
+
+- `1.` is not lexed as float (`1` then `.`)
+- scientific notation like `1e3` is not lexed as one numeric token
+
+### Strings
+
+- Double-quoted only: `"text"`
+- Escapes supported: `\\n`, `\\r`, `\\t`, `\\"`, `\\\\`
+- Unterminated strings produce parse diagnostics
+
+### Comments
+
+- Line comment: `// ...`
+- Block comment: `/* ... */`
+
+### Operators and Delimiters
+
+- Assignment: `=` and `<-` (same token)
+- Compound assignment: `+=`, `-=`, `*=`, `/=`, `%=`
+- Arithmetic/comparison: `+ - * / % %*% == != < <= > >=`
+- Logical: `!`, `&&`, `||`
+- Single `&` and `|` are also tokenized as logical operators
+- Others: `..`, `.`, `|>`, `?`, `@`, `^`, `=>`, `->`
+- Delimiters: `()`, `{}`, `[]`, `,`, `:`, `;`
 
 ## Statements
 
-- Preferred declaration/assignment: `x <- expr` (or `x = expr`)
-- Explicit declaration (legacy/strict style): `let x = expr;`
-- Compound assignment (native style): `x += expr`, `x -= expr`, `x *= expr`, `x /= expr`, `x %= expr`
-- Typed declaration hints:
+### Declarations and Assignment
+
+- `let` declaration:
+  - `let x = expr`
   - `let x: int = 10L`
-  - `x: int = 10L` (declaration sugar)
-- Function declaration: `f <- function(a, b) { ... }`
-- Legacy alias function declaration: `fn f(a, b) { ... }`
-- Control flow: `if`, `while`, `for`
-- Return: `return expr;` or `return;`
-- Loop control: `break;`, `next;`
-- Module: `import "path.rr";`, `export fn ...`
+- Typed declaration sugar:
+  - `x: int = 10L`
+  - target must be a plain name (not index/field)
+- Assignment:
+  - `x = expr`, `x <- expr`
+  - `x[i] = expr`
+  - `rec.x = expr`
+- Compound assignment sugar:
+  - `x += y`
+  - `arr[i] += y`
+  - `rec.x -= y`
+  - lowered as `lhs = lhs <op> rhs`
+
+### Functions
+
+- Declaration forms:
+  - `fn add(a, b) { ... }`
+  - `function add(a, b) { ... }`
+- Expression-bodied form:
+  - `fn add(a, b) = a + b`
+- Type hints:
+  - params: `fn add(a: float, b: int) { ... }`
+  - return: `fn add(a: float, b: float) -> float { ... }`
+  - parser accepts both `->` and `=>` as return-arrow tokens
+
+### Control Flow
+
+- `if` / `else`
+- `while`
+- `for`
+  - `for (i in expr) ...`
+  - `for i in expr ...`
+- `return expr` or `return`
+- `break`
+- `next`
+
+`if`/`while` conditions accept both:
+
+- parenthesized form: `if (x < 1) ...`
+- no-paren form: `if x < 1 { ... }`
+
+### Modules
+
+- `import "path.rr"` (`;` optional)
+- `export fn name(...) { ... }`
+- `export function name(...) { ... }`
+
+Note: `export` is parsed as `export` + function declaration, not as general export of arbitrary assignment expressions.
 
 ## Expressions
 
+- Name: `x`
 - Unary: `-x`, `!x`
-- Binary: `+ - * / % %*% == != < <= > >= && ||`
+- Binary: `+ - * / % %*% == != < <= > >= && ||` (or `&`, `|`)
 - Range: `a .. b`
-- Call: `f(x, y)`, named args `f(x = 1, y = 2)`
+- Call: `f(x, y)`
+- Named call args: `f(x = 1, y = 2)`
 - Index: `x[i]`, `m[i, j]`
 - Field: `rec.a`
-- Lambda: `function(x) { x + 1 }` (legacy alias: `fn(x) { return x + 1; }`)
+- Vector literal: `[1, 2, 3]`
+- Record literal: `{a: 1, b: 2}`
+- Lambda: `fn(x) { ... }`, `function(x) { ... }`, `fn(x) = x + 1`
 - Pipe: `x |> f(1)`
 - Try postfix: `expr?`
-- Match: `match (v) { ... }`
-- Column/unquote syntax tokens: `@name`, `^expr` (lowered through HIR tidy/unquote forms)
+- Match: `match (v) { ... }` (parentheses required)
+- Column/unquote tokens: `@name`, `^expr`
 
-## Dotted Identifiers
+### Operator Precedence (low -> high)
 
-RR supports dotted names (e.g. `solve.cg`, `idx.cube`) for function/variable identifiers.
+1. `|>`
+2. `||`
+3. `&&`
+4. `==`, `!=`
+5. `<`, `<=`, `>`, `>=`
+6. `..`
+7. `+`, `-`
+8. `*`, `/`, `%`, `%*%`
+9. prefix `-`, `!`
+10. postfix call/index/field: `()`, `[]`, `.`
+11. postfix `?`
 
-Disambiguation rule:
+## Dotted Identifiers and Disambiguation
 
-- If the root name is bound in local scope, `a.b` is treated as field access.
-- If the root name is unbound in local scope, `a.b` can be treated as a dotted symbol name.
+RR supports dotted names such as `solve.cg`, `idx.cube`, and `is.na`.
 
-This keeps `rec.x` field semantics intact while allowing R-style dotted API names.
+Parser behavior:
 
-## Operator Notes
+- dotted references initially parse as field chains (`a.b.c`)
 
-- `%*%` is recognized as matrix multiplication token.
-- `&&` and `||` both map to logical operators.
-- `|>` is parsed and lowered as call rewriting.
+Lowering behavior (`src/hir/lower.rs`):
 
-## Pattern Matching
+- if root name is bound in local scope, keep field-access semantics
+- if root name is unbound locally, expression may be reinterpreted as dotted symbol name
 
-Supported pattern kinds:
+This allows both:
 
-- wildcard `_`
-- literal patterns
-- variable binding
-- list pattern `[a, b, ..rest]`
-- record pattern `{a: x, b: 1}`
+- true field access (`rec.x`)
+- R-style dotted function/variable names (`solve.cg(...)`)
 
-Current limitation:
+## Match and Pattern Support
 
-- record rest pattern (`{a: x, ..rest}`) is not supported.
+Match arm grammar:
 
-## Semicolon Policy
+- `pattern => expr`
+- `pattern if guard_expr => expr`
+- trailing comma after arm is allowed
 
-Semicolons are optional across statement boundaries, except when two statements are on the same line.
+Supported patterns:
 
-If a new statement starts on the same line without `;`, parser raises:
+- wildcard: `_`
+- literals: int/float/string/bool/null/na
+- binding: `name`
+- list pattern: `[a, b, ..rest]`
+- record pattern: `{a: x, b: y}`
 
-- `Missing ';' before ... on the same line`
+Current limits:
 
-Additional parser rule:
+- list spread `..` must be last
+- record rest pattern (`{a: x, ..rest}`) is not supported
 
-- Postfix operators (`(` call, `[` index, `.` field) do not continue across a newline.
-  - This keeps single-line control bodies stable:
-    - `if (c) x <- 1`
-    - next line starts a new statement, not a postfix chain of `x`.
+## Semicolon and Newline Policy
 
-## Assignment Policy (`let` vs `<-`)
+- Semicolons are optional in most places
+- Same-line statement boundaries require `;`
+- Missing same-line separator triggers:
+  - `Missing ';' before ... on the same line`
 
-RR accepts both `=` and `<-` assignment operators.
+Important newline rule:
 
-If assigning to an undeclared variable:
+- postfix continuations `(`, `[`, `.` do not continue across a newline
+- this keeps single-line control bodies stable and avoids accidental postfix chaining on the next line
 
-- default: implicit declaration is allowed (no warning)
-- strict mode (`RR_STRICT_LET=1` or `RR_STRICT_ASSIGN=1`): treated as compile error
+## Assignment Policy (`let` strictness)
 
-Notes:
+From `src/hir/lower.rs`:
 
-- Parser treats `=` and `<-` as equivalent assignment operators.
-- Optional warnings can be enabled with `RR_WARN_IMPLICIT_DECL=1`.
-- Recommended style for user code: `name <- ...` and `name <- function(...) { ... }`.
+- default: assignment to undeclared name implicitly declares it
+- strict mode: `RR_STRICT_LET=1` or `RR_STRICT_ASSIGN=1` makes it a compile error
+- warning mode: `RR_WARN_IMPLICIT_DECL=1` emits implicit-declaration warnings
 
-## Functions and Closures
+## Function and Closure Semantics
 
-- Global functions are typically authored as `name <- function(...) { ... }`.
-- `fn name(...) { ... }` remains supported as legacy alias form.
-- `function(...) { ... }` is accepted as lambda form (legacy alias: `fn(...) { ... }`).
-- Expression-bodied function syntax is supported:
-  - `fn add(a, b) = a + b`
-- Type hints are supported:
-  - parameter: `fn add(a: float, b: int) { ... }`
-  - return: `fn add(a: float, b: float) -> float { ... }`
-  - native aliases also work: `f64/f32`, `i64/i32`
-- Tail expression implicit return is supported in function/lambda bodies when no explicit `return` appears:
-  - `function(a, b) { a + b }` returns `a + b`.
-- Top-level function alias assignment (`name <- function(...) { ... }`) is tracked so calls resolve to lifted function symbols.
-- Parameter defaults are supported in syntax:
-  - `f <- function(a = 0.0, b = 0L) { a + b }`
-  - defaults are lowered into HIR parameter metadata and used as type hints (`Double`, `Int`, etc.).
-- Lambda expressions are lambda-lifted by HIR lowering.
-- Captures are packed via runtime helpers:
-  - `rr_closure_make`
-  - `rr_call_closure`
+- Parameter defaults are supported in syntax
+- Type hint aliases recognized in lowering include:
+  - ints: `int`, `integer`, `i32`, `i64`, `isize`
+  - floats: `float`, `double`, `numeric`, `f32`, `f64`
+  - bools: `bool`, `boolean`, `logical`
+  - strings: `str`, `string`, `char`, `character`
+  - `any`, `null`
+- If a function/lambda body has no explicit `return` statements, the trailing expression statement is converted to an implicit return
+- Lambdas are lambda-lifted; captures are packed through runtime closure helpers
 
-## Single-Line Control Forms
+## Pipe/Try/Column/Unquote Lowering Notes
 
-`if/else`, `while`, and `for` accept either block bodies or single statements.
-`if` and `while` conditions also accept optional parentheses in R++ style.
-`for` supports both R-style and native-style headers.
+- `x |> f(a)` lowers like `f(x, a)`
+- `x |> f(a)?` lowers to `Try(Call(...))`
+- `expr?` currently lowers through MIR mostly as pass-through of the inner expression
+- `@name` currently lowers to a string-like column reference value in MIR
+- `^expr` lowers to the inner expression
 
-Examples:
+## Dynamic Builtins (Hybrid Fallback)
 
-- `if (x < 1) y <- 1 else y <- 2`
-- `if x < 1 { y <- 1 } else { y <- 2 }`
-- `while (i < n) i <- i + 1`
-- `while i < n { i <- i + 1 }`
-- `for (i in 1..n) s <- s + i`
-- `for i in 1..n { s += i }`
-
-## Dynamic Builtins and Hybrid Handling
-
-Calls to dynamic runtime features are marked as `unsupported_dynamic` in MIR and handled conservatively:
+Calls to these builtins mark MIR functions as `unsupported_dynamic` and restrict aggressive optimization:
 
 - `eval`, `parse`, `get`, `assign`, `exists`, `mget`, `rm`, `ls`
 - `parent.frame`, `environment`, `sys.frame`, `sys.call`, `do.call`
 
-These functions still emit runnable R code, but optimization is intentionally restricted for safety.
+RR still emits runnable R code for these paths, but keeps optimization conservative for correctness.
