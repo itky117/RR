@@ -13,6 +13,7 @@ use std::fs;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum OptLevel {
@@ -529,7 +530,7 @@ fn compile(
     ui.banner(input_label, opt_level);
 
     // Module Loader State
-    let mut loaded_paths = std::collections::HashSet::new();
+    let mut loaded_paths = FxHashSet::default();
     let mut queue = std::collections::VecDeque::new();
 
     // Normalize entry path
@@ -552,7 +553,7 @@ fn compile(
     );
     let mut hir_modules = Vec::new();
     let mut hir_lowerer = crate::hir::lower::Lowerer::new();
-    let mut global_symbols = std::collections::HashMap::new();
+    let mut global_symbols = FxHashMap::default();
     let mut load_errors: Vec<crate::error::RRException> = Vec::new();
 
     while let Some((curr_path_str, content, mod_id)) = queue.pop_front() {
@@ -660,11 +661,11 @@ fn compile(
         "SSA Graph Synthesis",
         "build dominator tree & phi nodes",
     );
-    let mut all_fns = std::collections::HashMap::new();
+    let mut all_fns = FxHashMap::default();
     let mut emit_order: Vec<String> = Vec::new();
     let mut top_level_calls: Vec<String> = Vec::new();
-    let mut known_fn_arities: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
+    let mut known_fn_arities: FxHashMap<String, usize> =
+        FxHashMap::default();
 
     for module in &desugared_hir.modules {
         for item in &module.items {
@@ -731,13 +732,13 @@ fn compile(
                     tidy_safe: false,
                 },
                 span: crate::utils::Span::default(),
-                local_names: std::collections::HashMap::new(),
+                local_names: FxHashMap::default(),
                 public: false,
             };
             let lowerer = crate::mir::lower_hir::MirLowerer::new(
                 top_fn_name.clone(),
                 Vec::new(),
-                std::collections::HashMap::new(),
+                FxHashMap::default(),
                 &global_symbols,
                 &known_fn_arities,
             );

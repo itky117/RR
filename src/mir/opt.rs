@@ -1,7 +1,7 @@
 use crate::mir::*;
 use crate::syntax::ast::BinOp;
 use std::collections::hash_map::DefaultHasher;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::env;
 use std::hash::{Hash, Hasher};
 use std::time::Instant;
@@ -222,7 +222,7 @@ impl TachyonEngine {
 
     // Required lowering-to-codegen stabilization passes.
     // This must run even in O0, because codegen cannot emit Phi.
-    pub fn stabilize_for_codegen(&self, all_fns: &mut std::collections::HashMap<String, FnIR>) {
+    pub fn stabilize_for_codegen(&self, all_fns: &mut FxHashMap<String, FnIR>) {
         for (_, fn_ir) in all_fns.iter_mut() {
             if !Self::verify_or_reject(fn_ir, "PrepareForCodegen/Start") {
                 continue;
@@ -244,13 +244,13 @@ impl TachyonEngine {
         }
     }
 
-    pub fn run_program(&self, all_fns: &mut std::collections::HashMap<String, FnIR>) {
+    pub fn run_program(&self, all_fns: &mut FxHashMap<String, FnIR>) {
         let _ = self.run_program_with_stats(all_fns);
     }
 
     pub fn run_program_with_stats(
         &self,
-        all_fns: &mut std::collections::HashMap<String, FnIR>,
+        all_fns: &mut FxHashMap<String, FnIR>,
     ) -> TachyonPulseStats {
         /*
         // 1. Clean
@@ -363,20 +363,20 @@ impl TachyonEngine {
     }
 
     pub fn run_function(&self, fn_ir: &mut FnIR) {
-        let empty = HashSet::new();
+        let empty = FxHashSet::default();
         let _ = self.run_function_with_stats(fn_ir, &empty);
     }
 
     pub fn run_function_with_stats(
         &self,
         fn_ir: &mut FnIR,
-        callmap_user_whitelist: &HashSet<String>,
+        callmap_user_whitelist: &FxHashSet<String>,
     ) -> TachyonPulseStats {
         let mut stats = TachyonPulseStats::default();
         let mut changed = true;
         let loop_opt = loop_opt::MirLoopOptimizer::new();
         let mut iterations = 0;
-        let mut seen_hashes = HashSet::new();
+        let mut seen_hashes = FxHashSet::default();
         let start_time = Instant::now();
         let fn_ir_size = Self::fn_ir_size(fn_ir);
         let max_iters = if fn_ir_size > 2200 {
@@ -540,7 +540,7 @@ impl TachyonEngine {
         // Final polishing pass
         let mut polishing = true;
         let mut polish_guard = 0usize;
-        let mut polish_seen: HashSet<u64> = HashSet::new();
+        let mut polish_seen: FxHashSet<u64> = FxHashSet::default();
         while polishing && polish_guard < 16 {
             if start_time.elapsed().as_millis() > Self::max_fn_opt_ms() {
                 break;
@@ -566,11 +566,11 @@ impl TachyonEngine {
     }
 
     // Backward-compat wrappers.
-    pub fn prepare_for_codegen(&self, all_fns: &mut std::collections::HashMap<String, FnIR>) {
+    pub fn prepare_for_codegen(&self, all_fns: &mut FxHashMap<String, FnIR>) {
         self.stabilize_for_codegen(all_fns);
     }
 
-    pub fn optimize_all(&self, all_fns: &mut std::collections::HashMap<String, FnIR>) {
+    pub fn optimize_all(&self, all_fns: &mut FxHashMap<String, FnIR>) {
         self.run_program(all_fns);
     }
 
@@ -578,8 +578,8 @@ impl TachyonEngine {
         self.run_function(fn_ir);
     }
 
-    fn collect_callmap_user_whitelist(all_fns: &HashMap<String, FnIR>) -> HashSet<String> {
-        let mut whitelist: HashSet<String> = HashSet::new();
+    fn collect_callmap_user_whitelist(all_fns: &FxHashMap<String, FnIR>) -> FxHashSet<String> {
+        let mut whitelist: FxHashSet<String> = FxHashSet::default();
         let mut changed = true;
         while changed {
             changed = false;
@@ -599,7 +599,7 @@ impl TachyonEngine {
     fn is_callmap_vector_safe_user_fn(
         name: &str,
         fn_ir: &FnIR,
-        user_whitelist: &HashSet<String>,
+        user_whitelist: &FxHashSet<String>,
     ) -> bool {
         if fn_ir.unsupported_dynamic {
             return false;
@@ -633,7 +633,7 @@ impl TachyonEngine {
                     fn_ir,
                     ret_vid,
                     user_whitelist,
-                    &mut HashSet::new(),
+                    &mut FxHashSet::default(),
                 ) {
                     return false;
                 }
@@ -645,8 +645,8 @@ impl TachyonEngine {
     fn is_vector_safe_user_expr(
         fn_ir: &FnIR,
         vid: ValueId,
-        user_whitelist: &HashSet<String>,
-        seen: &mut HashSet<ValueId>,
+        user_whitelist: &FxHashSet<String>,
+        seen: &mut FxHashSet<ValueId>,
     ) -> bool {
         let vid = Self::resolve_load_alias_value(fn_ir, vid);
         if !seen.insert(vid) {
@@ -704,7 +704,7 @@ impl TachyonEngine {
         }
 
         let mut cur = vid;
-        let mut seen = HashSet::new();
+        let mut seen = FxHashSet::default();
         while seen.insert(cur) {
             match &fn_ir.values[cur].kind {
                 ValueKind::Load { var } => {
@@ -724,7 +724,7 @@ impl TachyonEngine {
         let mut changed = false;
 
         // 1. Identify reachable blocks
-        let mut reachable = HashSet::new();
+        let mut reachable = FxHashSet::default();
         let mut queue = vec![fn_ir.entry];
         reachable.insert(fn_ir.entry);
 
@@ -774,7 +774,7 @@ impl TachyonEngine {
         let mut changed = false;
 
         // 1. Mark used values
-        let mut used = HashSet::new();
+        let mut used = FxHashSet::default();
 
         // Final values used in terminators
         for blk in &fn_ir.blocks {
@@ -1031,12 +1031,12 @@ impl TachyonEngine {
         fn_ir: &FnIR,
         base_id: ValueId,
         idx_id: ValueId,
-        facts: &std::collections::HashMap<ValueId, crate::mir::flow::Facts>,
+        facts: &FxHashMap<ValueId, crate::mir::flow::Facts>,
     ) -> bool {
         let f = facts
             .get(&idx_id)
             .cloned()
-            .unwrap_or(crate::mir::flow::Facts::empty());
+            .unwrap_or(Facts::empty());
 
         // Basic check: If it's ONE_BASED and fits in length.
         // Proving "fits in length" is hard without symbolic intervals.
@@ -1047,7 +1047,7 @@ impl TachyonEngine {
         // Or if idx_id is a Phi whose inputs come from indices(base).
 
         // Case B: induction-variable pattern.
-        if f.has(crate::mir::flow::Facts::ONE_BASED) {
+        if f.has(Facts::ONE_BASED) {
             if self.is_derived_from_len(fn_ir, idx_id, base_id, facts) {
                 return true;
             }
@@ -1061,7 +1061,7 @@ impl TachyonEngine {
         fn_ir: &FnIR,
         val_id: ValueId,
         base_id: ValueId,
-        facts: &std::collections::HashMap<ValueId, crate::mir::flow::Facts>,
+        facts: &FxHashMap<ValueId, crate::mir::flow::Facts>,
     ) -> bool {
         let val = &fn_ir.values[val_id];
         match &val.kind {
@@ -1071,7 +1071,7 @@ impl TachyonEngine {
                 lhs,
                 rhs,
             } => {
-                if let ValueKind::Const(crate::syntax::ast::Lit::Int(1)) = &fn_ir.values[*rhs].kind
+                if let ValueKind::Const(Lit::Int(1)) = &fn_ir.values[*rhs].kind
                 {
                     return self.is_loop_induction(fn_ir, *lhs, base_id);
                 }
@@ -1089,7 +1089,7 @@ impl TachyonEngine {
         if let ValueKind::Phi { args } = &val.kind {
             for (arg_id, _) in args {
                 let arg_val = &fn_ir.values[*arg_id];
-                if let ValueKind::Const(crate::syntax::ast::Lit::Int(0)) = &arg_val.kind {
+                if let ValueKind::Const(Lit::Int(0)) = &arg_val.kind {
                     // Heuristic: a phi starting at zero is treated as induction.
                     return true;
                 }

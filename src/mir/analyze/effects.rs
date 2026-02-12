@@ -48,8 +48,9 @@ pub fn call_is_pure(callee: &str) -> bool {
         // Built-in pure functions
         "length" | "seq_len" | "seq_along" | "abs" | "sqrt" | "sin" | "cos" | "tan" | "log"
         | "exp" | "c" | "sum" | "mean" | "var" | "sd" | "min" | "max" | "prod" | "colSums"
-        | "rowSums" | "%*%" | "crossprod" | "tcrossprod" | "rr_field_get" | "rr_field_exists"
-        | "rr_list_rest" | "rr_named_list" | "rr_row_sum_range" | "rr_col_sum_range" => true,
+        | "rowSums" | "%*%" | "crossprod" | "tcrossprod" | "is.na" | "is.finite"
+        | "rr_field_get" | "rr_field_exists" | "rr_list_rest" | "rr_named_list"
+        | "rr_row_sum_range" | "rr_col_sum_range" => true,
         // Comparison/Logical helpers that might be lowered as calls
         "rr_bool" => true,
         _ => false,

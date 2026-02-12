@@ -2,13 +2,12 @@ use crate::error::{RR, RRCode, RRException, Stage};
 use crate::hir::def::*;
 use crate::syntax::ast;
 use crate::utils::Span;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::env;
 
 pub struct Lowerer {
     // Symbol resolution state
-    scopes: Vec<HashMap<String, LocalId>>,
+    scopes: Vec<FxHashMap<String, LocalId>>,
     next_local_id: u32,
     next_sym_id: u32,
 
@@ -16,11 +15,11 @@ pub struct Lowerer {
     in_tidy: bool,
 
     // Mapping for current function's locals
-    local_names: HashMap<LocalId, String>,
+    local_names: FxHashMap<LocalId, String>,
 
     // Global Symbol Table
-    symbols: HashMap<SymbolId, String>,
-    symbols_rev: HashMap<String, SymbolId>,
+    symbols: FxHashMap<SymbolId, String>,
+    symbols_rev: FxHashMap<String, SymbolId>,
     // Collected lowering warnings (reported by caller)
     warnings: Vec<String>,
     // If true, assignment to undeclared names is an error.
@@ -31,7 +30,7 @@ pub struct Lowerer {
     pending_fns: Vec<HirFn>,
     // Top-level aliases of function values, e.g. `let f = fn(...) { ... }`.
     // Used so function bodies can resolve `f(...)` directly to lifted symbols.
-    global_fn_aliases: HashMap<String, SymbolId>,
+    global_fn_aliases: FxHashMap<String, SymbolId>,
 }
 
 impl Lowerer {
@@ -39,18 +38,18 @@ impl Lowerer {
         let strict_let = Self::env_truthy("RR_STRICT_LET") || Self::env_truthy("RR_STRICT_ASSIGN");
         let warn_implicit_decl = Self::env_truthy("RR_WARN_IMPLICIT_DECL");
         Self {
-            scopes: vec![HashMap::new()], // Global scope?
+            scopes: vec![FxHashMap::default()], // Global scope?
             next_local_id: 0,
             next_sym_id: 0,
             in_tidy: false,
-            local_names: HashMap::new(),
-            symbols: HashMap::new(),
-            symbols_rev: HashMap::new(),
+            local_names: FxHashMap::default(),
+            symbols: FxHashMap::default(),
+            symbols_rev: FxHashMap::default(),
             warnings: Vec::new(),
             strict_let,
             warn_implicit_decl,
             pending_fns: Vec::new(),
-            global_fn_aliases: HashMap::new(),
+            global_fn_aliases: FxHashMap::default(),
         }
     }
 
@@ -69,12 +68,12 @@ impl Lowerer {
     }
 
     // Persistent symbol table
-    pub fn get_symbols(&self) -> HashMap<SymbolId, String> {
+    pub fn get_symbols(&self) -> FxHashMap<SymbolId, String> {
         self.symbols.clone()
     }
 
     fn enter_scope(&mut self) {
-        self.scopes.push(HashMap::new());
+        self.scopes.push(FxHashMap::default());
     }
 
     fn exit_scope(&mut self) {
@@ -229,14 +228,14 @@ impl Lowerer {
         params: &[ast::FnParam],
         body: &ast::Block,
     ) -> Vec<(String, LocalId)> {
-        fn in_scopes(scopes: &[HashSet<String>], name: &str) -> bool {
+        fn in_scopes(scopes: &[FxHashSet<String>], name: &str) -> bool {
             scopes.iter().rev().any(|s| s.contains(name))
         }
 
         fn record_capture(
             lowerer: &Lowerer,
-            scopes: &[HashSet<String>],
-            seen: &mut HashSet<String>,
+            scopes: &[FxHashSet<String>],
+            seen: &mut FxHashSet<String>,
             captures: &mut Vec<(String, LocalId)>,
             name: &str,
         ) {
@@ -250,7 +249,7 @@ impl Lowerer {
             }
         }
 
-        fn collect_pat_binders(p: &ast::Pattern, out: &mut HashSet<String>) {
+        fn collect_pat_binders(p: &ast::Pattern, out: &mut FxHashSet<String>) {
             match &p.kind {
                 ast::PatternKind::Bind(n) => {
                     out.insert(n.clone());
@@ -274,8 +273,8 @@ impl Lowerer {
 
         fn visit_expr(
             lowerer: &Lowerer,
-            scopes: &mut Vec<HashSet<String>>,
-            seen: &mut HashSet<String>,
+            scopes: &mut Vec<FxHashSet<String>>,
+            seen: &mut FxHashSet<String>,
             captures: &mut Vec<(String, LocalId)>,
             expr: &ast::Expr,
         ) {
@@ -329,7 +328,7 @@ impl Lowerer {
                 ast::ExprKind::Match { scrutinee, arms } => {
                     visit_expr(lowerer, scopes, seen, captures, scrutinee);
                     for arm in arms {
-                        let mut arm_scope = HashSet::new();
+                        let mut arm_scope = FxHashSet::default();
                         collect_pat_binders(&arm.pat, &mut arm_scope);
                         scopes.push(arm_scope);
                         if let Some(g) = &arm.guard {
@@ -344,7 +343,7 @@ impl Lowerer {
                     ret_ty_hint: _,
                     body,
                 } => {
-                    let mut lambda_scope = HashSet::new();
+                    let mut lambda_scope = FxHashSet::default();
                     for p in params {
                         lambda_scope.insert(p.name.clone());
                     }
@@ -358,8 +357,8 @@ impl Lowerer {
 
         fn visit_stmt(
             lowerer: &Lowerer,
-            scopes: &mut Vec<HashSet<String>>,
-            seen: &mut HashSet<String>,
+            scopes: &mut Vec<FxHashSet<String>>,
+            seen: &mut FxHashSet<String>,
             captures: &mut Vec<(String, LocalId)>,
             stmt: &ast::Stmt,
         ) {
@@ -403,24 +402,24 @@ impl Lowerer {
                     else_blk,
                 } => {
                     visit_expr(lowerer, scopes, seen, captures, cond);
-                    scopes.push(HashSet::new());
+                    scopes.push(FxHashSet::default());
                     visit_block(lowerer, scopes, seen, captures, then_blk);
                     scopes.pop();
                     if let Some(eb) = else_blk {
-                        scopes.push(HashSet::new());
+                        scopes.push(FxHashSet::default());
                         visit_block(lowerer, scopes, seen, captures, eb);
                         scopes.pop();
                     }
                 }
                 ast::StmtKind::While { cond, body } => {
                     visit_expr(lowerer, scopes, seen, captures, cond);
-                    scopes.push(HashSet::new());
+                    scopes.push(FxHashSet::default());
                     visit_block(lowerer, scopes, seen, captures, body);
                     scopes.pop();
                 }
                 ast::StmtKind::For { var, iter, body } => {
                     visit_expr(lowerer, scopes, seen, captures, iter);
-                    let mut loop_scope = HashSet::new();
+                    let mut loop_scope = FxHashSet::default();
                     loop_scope.insert(var.clone());
                     scopes.push(loop_scope);
                     visit_block(lowerer, scopes, seen, captures, body);
@@ -444,8 +443,8 @@ impl Lowerer {
 
         fn visit_block(
             lowerer: &Lowerer,
-            scopes: &mut Vec<HashSet<String>>,
-            seen: &mut HashSet<String>,
+            scopes: &mut Vec<FxHashSet<String>>,
+            seen: &mut FxHashSet<String>,
             captures: &mut Vec<(String, LocalId)>,
             block: &ast::Block,
         ) {
@@ -454,9 +453,9 @@ impl Lowerer {
             }
         }
 
-        let mut scopes: Vec<HashSet<String>> =
+        let mut scopes: Vec<FxHashSet<String>> =
             vec![params.iter().map(|p| p.name.clone()).collect()];
-        let mut seen = HashSet::new();
+        let mut seen = FxHashSet::default();
         let mut captures = Vec::new();
         visit_block(self, &mut scopes, &mut seen, &mut captures, body);
         captures
@@ -497,7 +496,7 @@ impl Lowerer {
         let lambda_sym = self.intern_symbol(&lambda_name);
         let fn_id = self.alloc_fn_id();
 
-        let saved_scopes = std::mem::replace(&mut self.scopes, vec![HashMap::new()]);
+        let saved_scopes = std::mem::replace(&mut self.scopes, vec![FxHashMap::default()]);
         let saved_local_names = std::mem::take(&mut self.local_names);
         let saved_next_local = self.next_local_id;
         self.next_local_id = 0;
@@ -581,7 +580,7 @@ impl Lowerer {
         &mut self,
         prog: ast::Program,
         mod_id: ModuleId,
-    ) -> RR<(HirModule, HashMap<SymbolId, String>)> {
+    ) -> RR<(HirModule, FxHashMap<SymbolId, String>)> {
         let mut items = Vec::new();
         // println!("Lowering module {:?} with {} statements", mod_id, prog.stmts.len());
         for stmt in prog.stmts {
@@ -651,7 +650,7 @@ impl Lowerer {
 
         // Isolate function-local scope from module-level bindings.
         // Names not declared in the function should lower as globals.
-        let saved_scopes = std::mem::replace(&mut self.scopes, vec![HashMap::new()]);
+        let saved_scopes = std::mem::replace(&mut self.scopes, vec![FxHashMap::default()]);
         let saved_local_names = std::mem::take(&mut self.local_names);
         let saved_next_local = self.next_local_id;
         self.next_local_id = 0;

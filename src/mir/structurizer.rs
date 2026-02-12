@@ -1,6 +1,6 @@
 use crate::mir::opt::loop_analysis::LoopAnalyzer;
 use crate::mir::*;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Debug, Clone)]
 pub enum StructuredBlock {
@@ -25,15 +25,15 @@ pub enum StructuredBlock {
 #[derive(Clone)]
 struct LoopCtx {
     header: BlockId,
-    body: HashSet<BlockId>,
+    body: FxHashSet<BlockId>,
 }
 
 pub struct Structurizer<'a> {
     fn_ir: &'a FnIR,
-    loop_headers: HashMap<BlockId, HashSet<BlockId>>,
-    postdoms: HashMap<BlockId, HashSet<BlockId>>,
-    postdom_depth: HashMap<BlockId, usize>,
-    reachable: HashSet<BlockId>,
+    loop_headers: FxHashMap<BlockId, FxHashSet<BlockId>>,
+    postdoms: FxHashMap<BlockId, FxHashSet<BlockId>>,
+    postdom_depth: FxHashMap<BlockId, usize>,
+    reachable: FxHashSet<BlockId>,
 }
 
 impl<'a> Structurizer<'a> {
@@ -52,14 +52,14 @@ impl<'a> Structurizer<'a> {
     }
 
     pub fn build(&self) -> StructuredBlock {
-        let mut visited = HashSet::new();
+        let mut visited = FxHashSet::default();
         self.build_sequence(self.fn_ir.entry, &mut visited, None, None)
     }
 
     fn build_sequence(
         &self,
         start: BlockId,
-        visited: &mut HashSet<BlockId>,
+        visited: &mut FxHashSet<BlockId>,
         loop_ctx: Option<LoopCtx>,
         stop: Option<BlockId>,
     ) -> StructuredBlock {
@@ -163,8 +163,8 @@ impl<'a> Structurizer<'a> {
     fn build_loop(
         &self,
         header: BlockId,
-        body_set: &HashSet<BlockId>,
-        visited: &mut HashSet<BlockId>,
+        body_set: &FxHashSet<BlockId>,
+        visited: &mut FxHashSet<BlockId>,
     ) -> (StructuredBlock, Option<BlockId>) {
         visited.insert(header);
         let blk = &self.fn_ir.blocks[header];
@@ -225,8 +225,8 @@ impl<'a> Structurizer<'a> {
     }
 }
 
-fn compute_reachable(fn_ir: &FnIR) -> HashSet<BlockId> {
-    let mut reachable = HashSet::new();
+fn compute_reachable(fn_ir: &FnIR) -> FxHashSet<BlockId> {
+    let mut reachable = FxHashSet::default();
     let mut queue = vec![fn_ir.entry];
     reachable.insert(fn_ir.entry);
 
@@ -261,17 +261,17 @@ fn compute_reachable(fn_ir: &FnIR) -> HashSet<BlockId> {
 
 fn compute_loop_headers(
     fn_ir: &FnIR,
-    reachable: &HashSet<BlockId>,
-) -> HashMap<BlockId, HashSet<BlockId>> {
+    reachable: &FxHashSet<BlockId>,
+) -> FxHashMap<BlockId, FxHashSet<BlockId>> {
     let analyzer = LoopAnalyzer::new(fn_ir);
     let loops = analyzer.find_loops();
 
-    let mut grouped: HashMap<BlockId, HashSet<BlockId>> = HashMap::new();
+    let mut grouped: FxHashMap<BlockId, FxHashSet<BlockId>> = FxHashMap::default();
     for lp in loops {
         if !reachable.contains(&lp.header) {
             continue;
         }
-        let entry = grouped.entry(lp.header).or_insert_with(HashSet::new);
+        let entry = grouped.entry(lp.header).or_insert_with(FxHashSet::default);
         for b in lp.body {
             entry.insert(b);
         }
@@ -281,12 +281,12 @@ fn compute_loop_headers(
 
 fn compute_postdoms(
     fn_ir: &FnIR,
-    reachable: &HashSet<BlockId>,
-) -> HashMap<BlockId, HashSet<BlockId>> {
-    let mut postdoms = HashMap::new();
-    let all: HashSet<BlockId> = reachable.iter().cloned().collect();
+    reachable: &FxHashSet<BlockId>,
+) -> FxHashMap<BlockId, FxHashSet<BlockId>> {
+    let mut postdoms = FxHashMap::default();
+    let all: FxHashSet<BlockId> = reachable.iter().cloned().collect();
 
-    let mut exits = HashSet::new();
+    let mut exits = FxHashSet::default();
     for &b in reachable {
         if successors(fn_ir, b).is_empty() {
             exits.insert(b);
@@ -313,7 +313,7 @@ fn compute_postdoms(
                 continue;
             }
 
-            let mut new_set: Option<HashSet<BlockId>> = None;
+            let mut new_set: Option<FxHashSet<BlockId>> = None;
             for s in succs {
                 if !reachable.contains(&s) {
                     continue;
@@ -340,10 +340,10 @@ fn compute_postdoms(
 }
 
 fn compute_postdom_depth(
-    postdoms: &HashMap<BlockId, HashSet<BlockId>>,
-    reachable: &HashSet<BlockId>,
-) -> HashMap<BlockId, usize> {
-    let mut ipdom: HashMap<BlockId, BlockId> = HashMap::new();
+    postdoms: &FxHashMap<BlockId, FxHashSet<BlockId>>,
+    reachable: &FxHashSet<BlockId>,
+) -> FxHashMap<BlockId, usize> {
+    let mut ipdom: FxHashMap<BlockId, BlockId> = FxHashMap::default();
 
     for &b in reachable {
         let set = match postdoms.get(&b) {
@@ -380,7 +380,7 @@ fn compute_postdom_depth(
         }
     }
 
-    let mut depth = HashMap::new();
+    let mut depth = FxHashMap::default();
     for &b in reachable {
         let mut d = 0usize;
         let mut cur = b;

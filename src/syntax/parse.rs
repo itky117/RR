@@ -28,6 +28,18 @@ enum Precedence {
 }
 
 impl<'a> Parser<'a> {
+    fn dotted_segment_name(kind: &TokenKind) -> Option<String> {
+        match kind {
+            TokenKind::Ident(n) => Some(n.clone()),
+            // Allow common R-style dotted names like `is.na` / `is.null`.
+            TokenKind::Na => Some("na".to_string()),
+            TokenKind::Null => Some("null".to_string()),
+            TokenKind::True => Some("true".to_string()),
+            TokenKind::False => Some("false".to_string()),
+            _ => None,
+        }
+    }
+
     pub fn new(input: &'a str) -> Self {
         let mut lexer = Lexer::new(input);
         let current = lexer.next_token();
@@ -75,13 +87,12 @@ impl<'a> Parser<'a> {
         };
         self.advance();
         while self.current.kind == TokenKind::Dot {
-            if !matches!(self.peek.kind, TokenKind::Ident(_)) {
+            if Self::dotted_segment_name(&self.peek.kind).is_none() {
                 break;
             }
             self.advance(); // dot
-            let seg = match &self.current.kind {
-                TokenKind::Ident(n) => n.clone(),
-                _ => break,
+            let Some(seg) = Self::dotted_segment_name(&self.current.kind) else {
+                break;
             };
             out.push('.');
             out.push_str(&seg);
@@ -1112,8 +1123,8 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Dot => {
                 self.advance(); // consume '.'
-                let (name, end) = match &self.current.kind {
-                    TokenKind::Ident(n) => (n.clone(), self.current.span),
+                let (name, end) = match Self::dotted_segment_name(&self.current.kind) {
+                    Some(n) => (n, self.current.span),
                     _ => bail!(
                         "RR.ParseError",
                         RRCode::E0001,

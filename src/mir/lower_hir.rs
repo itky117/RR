@@ -4,7 +4,7 @@ use crate::mir::flow::Facts;
 use crate::mir::*;
 use crate::syntax::ast::{BinOp, Lit};
 use crate::utils::Span;
-use std::collections::HashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Clone, Copy)]
 struct LoopTargets {
@@ -20,20 +20,20 @@ pub struct MirLowerer<'a> {
     curr_block: BlockId,
 
     // Current definitions per block (sealed SSA construction).
-    defs: HashMap<BlockId, HashMap<hir::LocalId, ValueId>>,
+    defs: FxHashMap<BlockId, FxHashMap<hir::LocalId, ValueId>>,
 
     // Deferred phi operands for unsealed blocks.
-    incomplete_phis: HashMap<BlockId, Vec<(hir::LocalId, ValueId)>>,
-    sealed_blocks: std::collections::HashSet<BlockId>,
+    incomplete_phis: FxHashMap<BlockId, Vec<(hir::LocalId, ValueId)>>,
+    sealed_blocks: FxHashSet<BlockId>,
     // Predecessor map for SSA reads.
-    preds: HashMap<BlockId, Vec<BlockId>>,
+    preds: FxHashMap<BlockId, Vec<BlockId>>,
 
     // Name mapping for codegen.
-    var_names: HashMap<hir::LocalId, String>,
+    var_names: FxHashMap<hir::LocalId, String>,
 
-    // Symbol table snapshot.
-    symbols: &'a HashMap<hir::SymbolId, String>,
-    known_functions: &'a HashMap<String, usize>,
+    // Symbol table (borrowed from caller).
+    symbols: &'a FxHashMap<hir::SymbolId, String>,
+    known_functions: &'a FxHashMap<String, usize>,
     loop_stack: Vec<LoopTargets>,
 }
 
@@ -41,9 +41,9 @@ impl<'a> MirLowerer<'a> {
     pub fn new(
         name: String,
         params: Vec<String>,
-        var_names: HashMap<hir::LocalId, String>,
-        symbols: &'a HashMap<hir::SymbolId, String>,
-        known_functions: &'a HashMap<String, usize>,
+        var_names: FxHashMap<hir::LocalId, String>,
+        symbols: &'a FxHashMap<hir::SymbolId, String>,
+        known_functions: &'a FxHashMap<String, usize>,
     ) -> Self {
         let mut fn_ir = FnIR::new(name, params.clone());
         let entry = fn_ir.add_block();
@@ -52,17 +52,17 @@ impl<'a> MirLowerer<'a> {
         fn_ir.body_head = body_head;
 
         // Init defs map for entry
-        let mut defs = HashMap::new();
-        defs.insert(entry, HashMap::new());
-        defs.insert(body_head, HashMap::new());
+        let mut defs = FxHashMap::default();
+        defs.insert(entry, FxHashMap::default());
+        defs.insert(body_head, FxHashMap::default());
 
         Self {
             fn_ir,
             curr_block: entry,
             defs,
-            incomplete_phis: HashMap::new(),
-            sealed_blocks: std::collections::HashSet::new(),
-            preds: HashMap::new(),
+            incomplete_phis: FxHashMap::default(),
+            sealed_blocks: FxHashSet::default(),
+            preds: FxHashMap::default(),
             var_names,
             symbols,
             known_functions,
@@ -758,6 +758,8 @@ impl<'a> MirLowerer<'a> {
                                     | "pmax"
                                     | "pmin"
                                     | "print"
+                                    | "is.na"
+                                    | "is.finite"
                                     | "numeric"
                                     | "rep.int"
                                     | "vector"
@@ -1031,7 +1033,7 @@ impl<'a> MirLowerer<'a> {
         if let Some(defs_here) = self.defs.get(&from).cloned() {
             self.defs.insert(dead_bb, defs_here);
         } else {
-            self.defs.insert(dead_bb, HashMap::new());
+            self.defs.insert(dead_bb, FxHashMap::default());
         }
         self.curr_block = dead_bb;
     }

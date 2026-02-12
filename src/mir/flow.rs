@@ -1,5 +1,6 @@
 use crate::mir::*;
-use std::collections::{HashMap, VecDeque};
+use rustc_hash::FxHashMap;
+use std::collections::VecDeque;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Interval {
@@ -151,8 +152,8 @@ impl DataflowSolver {
         Self
     }
 
-    pub fn analyze_function(fn_ir: &FnIR) -> HashMap<ValueId, Facts> {
-        let mut facts: HashMap<ValueId, Facts> = HashMap::new();
+    pub fn analyze_function(fn_ir: &FnIR) -> FxHashMap<ValueId, Facts> {
+        let mut facts: FxHashMap<ValueId, Facts> = FxHashMap::default();
         let mut worklist: VecDeque<ValueId> = VecDeque::new();
 
         // 1. Initialize
@@ -223,7 +224,7 @@ impl DataflowSolver {
         facts
     }
 
-    fn transfer(val: &Value, facts: &HashMap<ValueId, Facts>, _fn_ir: &FnIR) -> Facts {
+    fn transfer(val: &Value, facts: &FxHashMap<ValueId, Facts>, _fn_ir: &FnIR) -> Facts {
         // Assume Val starts as Empty (Bottom) and we build it up from inputs.
         // Except if inputs are Bottom, result might be Bottom.
 

@@ -1,10 +1,10 @@
 use crate::error::{RR, RRCode, RRException, Stage};
 use crate::mir::*;
 use crate::utils::Span;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
-pub fn validate_program(all_fns: &HashMap<String, FnIR>) -> RR<()> {
-    let mut user_arities: HashMap<String, usize> = HashMap::new();
+pub fn validate_program(all_fns: &FxHashMap<String, FnIR>) -> RR<()> {
+    let mut user_arities: FxHashMap<String, usize> = FxHashMap::default();
     let mut errors = Vec::new();
     for (name, fn_ir) in all_fns {
         user_arities.insert(name.clone(), fn_ir.params.len());
@@ -22,7 +22,7 @@ pub fn validate_program(all_fns: &HashMap<String, FnIR>) -> RR<()> {
     )
 }
 
-pub fn validate_runtime_safety(all_fns: &HashMap<String, FnIR>) -> RR<()> {
+pub fn validate_runtime_safety(all_fns: &FxHashMap<String, FnIR>) -> RR<()> {
     let mut errors = Vec::new();
     for fn_ir in all_fns.values() {
         errors.extend(validate_function_runtime(fn_ir));
@@ -36,9 +36,9 @@ pub fn validate_runtime_safety(all_fns: &HashMap<String, FnIR>) -> RR<()> {
     )
 }
 
-fn validate_function(fn_ir: &FnIR, user_arities: &HashMap<String, usize>) -> Vec<RRException> {
+fn validate_function(fn_ir: &FnIR, user_arities: &FxHashMap<String, usize>) -> Vec<RRException> {
     let mut errors = Vec::new();
-    let mut assigned_vars: HashSet<String> = fn_ir.params.iter().cloned().collect();
+    let mut assigned_vars: FxHashSet<String> = fn_ir.params.iter().cloned().collect();
     for block in &fn_ir.blocks {
         for ins in &block.instrs {
             if let Instr::Assign { dst, .. } = ins {
@@ -78,7 +78,7 @@ fn validate_function(fn_ir: &FnIR, user_arities: &HashMap<String, usize>) -> Vec
 
 fn validate_function_runtime(fn_ir: &FnIR) -> Vec<RRException> {
     let mut errors = Vec::new();
-    let mut memo: HashMap<ValueId, Option<Lit>> = HashMap::new();
+    let mut memo: FxHashMap<ValueId, Option<Lit>> = FxHashMap::default();
     let reachable_blocks = collect_reachable_blocks(fn_ir);
     let reachable_values = collect_reachable_values(fn_ir, &reachable_blocks);
 
@@ -88,7 +88,7 @@ fn validate_function_runtime(fn_ir: &FnIR) -> Vec<RRException> {
         }
         if let Terminator::If { cond, .. } = block.term {
             if reachable_values.contains(&cond)
-                && let Some(lit) = eval_const(fn_ir, cond, &mut memo, &mut HashSet::new())
+                && let Some(lit) = eval_const(fn_ir, cond, &mut memo, &mut FxHashSet::default())
             {
                 if let Err(e) = validate_const_condition(lit, fn_ir.values[cond].span) {
                     errors.push(e);
@@ -99,19 +99,19 @@ fn validate_function_runtime(fn_ir: &FnIR) -> Vec<RRException> {
         for ins in &block.instrs {
             match ins {
                 Instr::StoreIndex1D { idx, span, .. } => {
-                    if let Some(lit) = eval_const(fn_ir, *idx, &mut memo, &mut HashSet::new()) {
+                    if let Some(lit) = eval_const(fn_ir, *idx, &mut memo, &mut FxHashSet::default()) {
                         if let Err(e) = validate_index_lit_for_write(lit, *span) {
                             errors.push(e);
                         }
                     }
                 }
                 Instr::StoreIndex2D { r, c, span, .. } => {
-                    if let Some(lit) = eval_const(fn_ir, *r, &mut memo, &mut HashSet::new()) {
+                    if let Some(lit) = eval_const(fn_ir, *r, &mut memo, &mut FxHashSet::default()) {
                         if let Err(e) = validate_index_lit_for_write(lit, *span) {
                             errors.push(e);
                         }
                     }
-                    if let Some(lit) = eval_const(fn_ir, *c, &mut memo, &mut HashSet::new()) {
+                    if let Some(lit) = eval_const(fn_ir, *c, &mut memo, &mut FxHashSet::default()) {
                         if let Err(e) = validate_index_lit_for_write(lit, *span) {
                             errors.push(e);
                         }
@@ -130,7 +130,7 @@ fn validate_function_runtime(fn_ir: &FnIR) -> Vec<RRException> {
         }
         match &v.kind {
             ValueKind::Binary { op, rhs, .. } if matches!(op, BinOp::Div | BinOp::Mod) => {
-                if let Some(lit) = eval_const(fn_ir, *rhs, &mut memo, &mut HashSet::new()) {
+                if let Some(lit) = eval_const(fn_ir, *rhs, &mut memo, &mut FxHashSet::default()) {
                     if is_zero_number(&lit) {
                         errors.push(
                             RRException::new(
@@ -147,26 +147,26 @@ fn validate_function_runtime(fn_ir: &FnIR) -> Vec<RRException> {
                 }
             }
             ValueKind::Index1D { idx, .. } => {
-                if let Some(lit) = eval_const(fn_ir, *idx, &mut memo, &mut HashSet::new()) {
+                if let Some(lit) = eval_const(fn_ir, *idx, &mut memo, &mut FxHashSet::default()) {
                     if let Err(e) = validate_index_lit_for_read(lit, v.span) {
                         errors.push(e);
                     }
                 }
             }
             ValueKind::Index2D { r, c, .. } => {
-                if let Some(lit) = eval_const(fn_ir, *r, &mut memo, &mut HashSet::new()) {
+                if let Some(lit) = eval_const(fn_ir, *r, &mut memo, &mut FxHashSet::default()) {
                     if let Err(e) = validate_index_lit_for_read(lit, v.span) {
                         errors.push(e);
                     }
                 }
-                if let Some(lit) = eval_const(fn_ir, *c, &mut memo, &mut HashSet::new()) {
+                if let Some(lit) = eval_const(fn_ir, *c, &mut memo, &mut FxHashSet::default()) {
                     if let Err(e) = validate_index_lit_for_read(lit, v.span) {
                         errors.push(e);
                     }
                 }
             }
             ValueKind::Call { callee, args, .. } if callee == "seq_len" && args.len() == 1 => {
-                if let Some(lit) = eval_const(fn_ir, args[0], &mut memo, &mut HashSet::new()) {
+                if let Some(lit) = eval_const(fn_ir, args[0], &mut memo, &mut FxHashSet::default()) {
                     if let Some(n) = as_integral(&lit) {
                         if n < 0 {
                             errors.push(
@@ -197,10 +197,10 @@ fn validate_function_runtime(fn_ir: &FnIR) -> Vec<RRException> {
     errors
 }
 
-fn collect_reachable_blocks(fn_ir: &FnIR) -> HashSet<BlockId> {
-    let mut seen = HashSet::new();
+fn collect_reachable_blocks(fn_ir: &FnIR) -> FxHashSet<BlockId> {
+    let mut seen = FxHashSet::default();
     let mut stack = vec![fn_ir.entry];
-    let mut memo: HashMap<ValueId, Option<Lit>> = HashMap::new();
+    let mut memo: FxHashMap<ValueId, Option<Lit>> = FxHashMap::default();
     while let Some(bb) = stack.pop() {
         if !seen.insert(bb) {
             continue;
@@ -215,7 +215,7 @@ fn collect_reachable_blocks(fn_ir: &FnIR) -> HashSet<BlockId> {
                 then_bb,
                 else_bb,
             } => {
-                let cond_lit = eval_const(fn_ir, cond, &mut memo, &mut HashSet::new());
+                let cond_lit = eval_const(fn_ir, cond, &mut memo, &mut FxHashSet::default());
                 match cond_lit {
                     Some(Lit::Bool(true)) => stack.push(then_bb),
                     Some(Lit::Bool(false)) => stack.push(else_bb),
@@ -231,7 +231,7 @@ fn collect_reachable_blocks(fn_ir: &FnIR) -> HashSet<BlockId> {
     seen
 }
 
-fn collect_reachable_values(fn_ir: &FnIR, reachable_blocks: &HashSet<BlockId>) -> HashSet<ValueId> {
+fn collect_reachable_values(fn_ir: &FnIR, reachable_blocks: &FxHashSet<BlockId>) -> FxHashSet<ValueId> {
     let mut roots = Vec::new();
     for (bid, block) in fn_ir.blocks.iter().enumerate() {
         if !reachable_blocks.contains(&bid) {
@@ -263,7 +263,7 @@ fn collect_reachable_values(fn_ir: &FnIR, reachable_blocks: &HashSet<BlockId>) -
         }
     }
 
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     let mut stack = roots;
     while let Some(vid) = stack.pop() {
         if !seen.insert(vid) {
@@ -311,8 +311,8 @@ fn collect_reachable_values(fn_ir: &FnIR, reachable_blocks: &HashSet<BlockId>) -
 fn eval_const(
     fn_ir: &FnIR,
     vid: ValueId,
-    memo: &mut HashMap<ValueId, Option<Lit>>,
-    visiting: &mut HashSet<ValueId>,
+    memo: &mut FxHashMap<ValueId, Option<Lit>>,
+    visiting: &mut FxHashSet<ValueId>,
 ) -> Option<Lit> {
     if let Some(v) = memo.get(&vid) {
         return v.clone();
@@ -522,7 +522,7 @@ fn validate_call_target(
     callee: &str,
     argc: usize,
     span: Span,
-    user_arities: &HashMap<String, usize>,
+    user_arities: &FxHashMap<String, usize>,
 ) -> RR<()> {
     if let Some(expected) = user_arities.get(callee) {
         if *expected != argc {
@@ -580,7 +580,8 @@ fn builtin_arity(name: &str) -> Option<(usize, Option<usize>)> {
     match name {
         "length" | "seq_len" | "seq_along" | "abs" | "sqrt" | "sin" | "cos" | "tan" | "asin"
         | "acos" | "atan" | "sinh" | "cosh" | "tanh" | "log10" | "log2" | "exp" | "sign"
-        | "gamma" | "lgamma" | "floor" | "ceiling" | "trunc" | "colSums" | "rowSums" => {
+        | "gamma" | "lgamma" | "floor" | "ceiling" | "trunc" | "colSums" | "rowSums"
+        | "is.na" | "is.finite" => {
             Some((1, Some(1)))
         }
         "atan2" => Some((2, Some(2))),

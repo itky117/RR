@@ -1,7 +1,6 @@
 #![no_main]
 
 use rustc_hash::FxHashMap;
-use std::collections::HashMap;
 
 use RR::codegen::mir_emit::MirEmitter;
 use RR::hir::def::{HirItem, HirProgram, ModuleId};
@@ -37,10 +36,6 @@ fuzz_target!(|data: &[u8]| {
             }
         }
     }
-    let known_fn_arities_std: HashMap<String, usize> = known_fn_arities
-        .iter()
-        .map(|(k, v)| (k.clone(), *v))
-        .collect();
 
     let hir_prog = HirProgram {
         modules: vec![hir_mod],
@@ -51,7 +46,7 @@ fuzz_target!(|data: &[u8]| {
         Err(_) => return,
     };
 
-    let mut all_fns = HashMap::new();
+    let mut all_fns = FxHashMap::default();
     for module in desugared.modules {
         for item in module.items {
             if let HirItem::Fn(f) = item {
@@ -70,7 +65,7 @@ fuzz_target!(|data: &[u8]| {
                     params,
                     var_names,
                     &symbols,
-                    &known_fn_arities_std,
+                    &known_fn_arities,
                 );
                 let Ok(fn_ir) = mir_lowerer.lower_fn(f) else {
                     continue;
