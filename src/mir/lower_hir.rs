@@ -97,21 +97,56 @@ impl<'a> MirLowerer<'a> {
         val: ValueId,
         emit_assign: bool,
     ) {
-        // Update origin_var of the value to the name of this local
+        // Update origin_var of the value to the name of this local.
+        // When assigning from a value that is already bound to a *different* variable
+        // name, rebind through an explicit Load(dst) for future reads to preserve
+        // assignment semantics under later variable mutation.
         let name = self.var_names.get(&var).cloned();
-        if let Some(n) = &name {
-            if let Some(v) = self.fn_ir.values.get_mut(val) {
-                if v.origin_var.is_none() {
-                    v.origin_var = Some(n.clone());
-                }
-            }
+        if let Some(n) = name {
             if emit_assign {
-                // Emit assignment instruction so it exists in R code
+                // Emit assignment instruction so it exists in R code.
                 self.fn_ir.blocks[block].instrs.push(Instr::Assign {
                     dst: n.clone(),
                     src: val,
                     span: Span::default(),
                 });
+
+                let mismatched_origin = self
+                    .fn_ir
+                    .values
+                    .get(val)
+                    .and_then(|v| v.origin_var.as_ref())
+                    .map(|orig| orig != &n)
+                    .unwrap_or(false);
+                let is_phi_value = self
+                    .fn_ir
+                    .values
+                    .get(val)
+                    .map(|v| matches!(v.kind, ValueKind::Phi { .. }))
+                    .unwrap_or(false);
+
+                let def_val = if mismatched_origin || is_phi_value {
+                    self.add_value_with_name(
+                        ValueKind::Load { var: n.clone() },
+                        Span::default(),
+                        Some(n),
+                    )
+                } else {
+                    if let Some(v) = self.fn_ir.values.get_mut(val) {
+                        if v.origin_var.is_none() {
+                            v.origin_var = Some(n);
+                        }
+                    }
+                    val
+                };
+                self.defs.entry(block).or_default().insert(var, def_val);
+                return;
+            }
+
+            if let Some(v) = self.fn_ir.values.get_mut(val) {
+                if v.origin_var.is_none() {
+                    v.origin_var = Some(n);
+                }
             }
         }
 

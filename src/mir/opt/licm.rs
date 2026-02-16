@@ -173,8 +173,13 @@ impl MirLicm {
                 changed = true;
             }
 
-            // Mark original as bound to temp_name
-            fn_ir.values[val_id].origin_var = Some(temp_name);
+            // Bind only value kinds that are name-stable in codegen.
+            if matches!(
+                fn_ir.values[val_id].kind,
+                ValueKind::Load { .. } | ValueKind::Param { .. } | ValueKind::Call { .. }
+            ) {
+                fn_ir.values[val_id].origin_var = Some(temp_name);
+            }
         }
 
         changed
@@ -300,10 +305,12 @@ impl MirLicm {
                 invariants.contains(base) && invariants.contains(idx)
             }
             ValueKind::Call { callee, args, .. } => {
-                if !effects::call_is_pure(callee) {
-                    return false;
-                }
-                args.iter().all(|a| invariants.contains(a))
+                // Calls are treated as non-speculatable for LICM.
+                // Even pure calls may throw/warn on some inputs, and hoisting them to
+                // a pre-header can change behavior when loops execute zero iterations.
+                let _ = callee;
+                let _ = args;
+                false
             }
             ValueKind::Phi { args } => {
                 // In SSA, a Phi in a loop is invariant if all its non-self arguments are invariant

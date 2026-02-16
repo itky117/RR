@@ -345,6 +345,11 @@ impl RBackend {
 
                 self.indent -= 1;
                 self.write_stmt("}");
+
+                // Loop bodies may execute an unknown number of times (including zero).
+                // Drop expression/value bindings after emitting a loop to avoid leaking
+                // single-iteration assumptions into post-loop value resolution.
+                self.value_bindings.clear();
             }
             StructuredBlock::Break => {
                 self.write_stmt("break");

@@ -1,15 +1,9 @@
+mod common;
+
+use common::unique_dir;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
-
-fn unique_dir(root: &PathBuf, name: &str) -> PathBuf {
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    root.join(format!("{}_{}_{}", name, std::process::id(), ts))
-}
 
 #[test]
 fn invalid_character_must_fail_compile() {

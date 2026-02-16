@@ -1,6 +1,8 @@
 # Compiler Pipeline
 
-RR compile path in `src/main.rs::compile()` uses a 6-step pipeline.
+RR compile path in `src/compiler/pipeline.rs::compile()` uses a 6-step pipeline.
+
+CLI entrypoints in `src/main.rs` call this pipeline API.
 
 ## High-Level Flow
 
@@ -54,7 +56,15 @@ RR validates before and after critical MIR phases:
 
 Multiple diagnostics are aggregated and reported together when possible.
 
+## Error Flow
+
+The compiler pipeline returns `RR<T>` (`Result<T, RRException>`):
+
+- pipeline layers return structured errors
+- CLI decides final process exit code
+- the compile core itself does not terminate the process directly
+
 ## Legacy IR Path
 
-`src/ir/*` still exists as a legacy/experimental layer.
+`src/legacy/ir/*` still exists as a legacy/experimental layer.
 Main production pipeline uses HIR -> MIR -> codegen path.

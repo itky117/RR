@@ -7,6 +7,23 @@ pub struct Move {
     pub src: ValueId,
 }
 
+fn param_runtime_var(fn_ir: &FnIR, index: usize) -> Option<&str> {
+    // Parameters are usually rewritten to internal locals like `.arg_x`.
+    // Prefer that runtime binding when present, and only fall back to the
+    // public parameter name.
+    for v in &fn_ir.values {
+        if let ValueKind::Param { index: i } = v.kind {
+            if i == index {
+                if let Some(name) = v.origin_var.as_deref() {
+                    return Some(name);
+                }
+                break;
+            }
+        }
+    }
+    fn_ir.params.get(index).map(|s| s.as_str())
+}
+
 pub fn emit_parallel_copy(
     fn_ir: &mut FnIR,
     out_instrs: &mut Vec<Instr>,
@@ -95,7 +112,7 @@ fn value_reads_var(fn_ir: &FnIR, src: ValueId, var: &VarId) -> bool {
     match &val.kind {
         ValueKind::Load { var: v } => v == var,
         ValueKind::Param { index } => {
-            if let Some(param_name) = fn_ir.params.get(*index) {
+            if let Some(param_name) = param_runtime_var(fn_ir, *index) {
                 return param_name == var;
             }
             false
@@ -140,7 +157,7 @@ fn replace_var_read(fn_ir: &mut FnIR, src: ValueId, old_var: &VarId, new_var: &V
             }
         }
         ValueKind::Param { index } => {
-            if let Some(param_name) = fn_ir.params.get(index) {
+            if let Some(param_name) = param_runtime_var(fn_ir, index) {
                 if param_name == old_var {
                     ValueKind::Load {
                         var: new_var.clone(),

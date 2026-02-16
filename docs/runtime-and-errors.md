@@ -43,6 +43,9 @@ Compiler diagnostics use `RRException` (`src/error.rs`) with:
 - stage (`Lex`, `Parse`, `Lower`, `MIR`, `Opt`, `Codegen`, `Runtime`, `Runner`, `ICE`)
 - optional span, stacktrace frames, notes, related errors
 
+Compiler core API (`src/compiler/pipeline.rs`) returns these diagnostics as `RR<T>`
+to callers; process exit behavior is handled by CLI wiring in `src/main.rs`.
+
 ## Multi-Error Reporting
 
 Parser and semantic/runtime validators can aggregate multiple findings into one report:

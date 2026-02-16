@@ -1,32 +1,9 @@
+mod common;
+
+use common::{rscript_available, rscript_path, unique_dir};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
-
-fn unique_dir(root: &Path, name: &str) -> PathBuf {
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    root.join(format!("{}_{}_{}", name, std::process::id(), ts))
-}
-
-fn rscript_path() -> Option<String> {
-    if let Ok(path) = std::env::var("RRSCRIPT") {
-        if !path.trim().is_empty() {
-            return Some(path);
-        }
-    }
-    Some("Rscript".to_string())
-}
-
-fn rscript_available(path: &str) -> bool {
-    Command::new(path)
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-}
 
 #[test]
 fn build_command_writes_r_files_into_build_dir() {

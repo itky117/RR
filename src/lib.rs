@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 
 pub mod codegen;
+pub mod compiler;
 pub mod error;
 pub mod hir;
 pub mod mir;

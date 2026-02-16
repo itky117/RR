@@ -1,27 +1,12 @@
+mod common;
+
+use common::{compile_rr, unique_dir};
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
-
-fn unique_dir(root: &PathBuf, name: &str) -> PathBuf {
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    root.join(format!("{}_{}_{}", name, std::process::id(), ts))
-}
 
 fn compile_to(rr_path: &PathBuf, out_path: &PathBuf, level: &str) {
     let rr_bin = PathBuf::from(env!("CARGO_BIN_EXE_RR"));
-    let status = Command::new(rr_bin)
-        .arg(rr_path)
-        .arg("-o")
-        .arg(out_path)
-        .arg("--no-runtime")
-        .arg(level)
-        .status()
-        .expect("failed to run RR");
-    assert!(status.success(), "compile failed at {}", level);
+    compile_rr(&rr_bin, rr_path, out_path, level);
 }
 
 #[test]

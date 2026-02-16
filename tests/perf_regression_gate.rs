@@ -1,16 +1,11 @@
+mod common;
+
+use common::unique_dir;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
-
-fn unique_dir(root: &PathBuf, name: &str) -> PathBuf {
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    root.join(format!("{}_{}_{}", name, std::process::id(), ts))
-}
+use std::time::Instant;
 
 fn build_perf_program() -> String {
     let mut src = String::new();

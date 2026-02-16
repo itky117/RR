@@ -29,6 +29,20 @@ pub fn optimize(fn_ir: &mut FnIR) -> bool {
     changed
 }
 
+fn param_runtime_var(fn_ir: &FnIR, index: usize) -> Option<String> {
+    for v in &fn_ir.values {
+        if let ValueKind::Param { index: i } = v.kind {
+            if i == index {
+                if let Some(name) = &v.origin_var {
+                    return Some(name.clone());
+                }
+                break;
+            }
+        }
+    }
+    fn_ir.params.get(index).cloned()
+}
+
 fn perform_tco(fn_ir: &mut FnIR, bid: BlockId) -> bool {
     let ret_val_id = if let Terminator::Return(Some(v)) = &fn_ir.blocks[bid].term {
         *v
@@ -42,16 +56,18 @@ fn perform_tco(fn_ir: &mut FnIR, bid: BlockId) -> bool {
         return false;
     };
 
-    let param_vars = fn_ir.params.clone();
-    if args.len() != param_vars.len() {
+    if args.len() != fn_ir.params.len() {
         return false;
     }
 
     // Prepare moves for Parallel Copy
     let mut moves = Vec::new();
     for (i, arg_id) in args.iter().enumerate() {
+        let Some(dst_var) = param_runtime_var(fn_ir, i) else {
+            return false;
+        };
         moves.push(crate::mir::opt::parallel_copy::Move {
-            dst: param_vars[i].clone(),
+            dst: dst_var,
             src: *arg_id,
         });
     }

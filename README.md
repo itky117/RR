@@ -3,6 +3,16 @@
 RR is an R-oriented compiler written in Rust.
 It compiles `.rr` sources into self-contained `.R` output, with a MIR-based optimizer (`Tachyon Engine`) and runtime safety guards.
 
+## Architecture
+
+- CLI entry: `src/main.rs`
+- Compiler pipeline core: `src/compiler/pipeline.rs`
+- Frontend: `src/syntax`, `src/hir`
+- Core IR + optimization: `src/mir`
+- Backend emission: `src/codegen/mir_emit.rs`
+- Runtime and execution: `src/runtime`
+- Legacy/experimental path (not production): `src/legacy`
+
 Surface syntax supports both styles:
 
 - R style: `x <- 1`, `add <- function(a, b) { a + b }`, `for (i in 1..n) ...`

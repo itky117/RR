@@ -46,3 +46,4 @@ Input can be:
 - non-zero: parse/semantic/runtime/compiler failure
 
 Errors are formatted via RR diagnostics (colored when terminal supports ANSI or `RR_FORCE_COLOR` is set).
+Compiler execution is delegated to `src/compiler/pipeline.rs`; CLI handles the final exit code.

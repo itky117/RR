@@ -1,4 +1,5 @@
 use crate::mir::*;
+use std::collections::HashSet;
 
 /// Checks if a statement has side effects.
 pub fn stmt_is_pure(stmt: &Instr, fn_ir: &FnIR) -> bool {
@@ -12,34 +13,55 @@ pub fn stmt_is_pure(stmt: &Instr, fn_ir: &FnIR) -> bool {
 
 /// Checks if an Rvalue (ValueKind) is pure.
 pub fn rvalue_is_pure(vid: ValueId, fn_ir: &FnIR) -> bool {
+    let mut visiting = HashSet::new();
+    rvalue_is_pure_inner(vid, fn_ir, &mut visiting)
+}
+
+fn rvalue_is_pure_inner(vid: ValueId, fn_ir: &FnIR, visiting: &mut HashSet<ValueId>) -> bool {
+    // Cycles through Phi/self-referential values are not considered provably pure.
+    if !visiting.insert(vid) {
+        return false;
+    }
+
     let val = &fn_ir.values[vid];
-    match &val.kind {
+    let pure = match &val.kind {
         ValueKind::Const(_) => true,
         ValueKind::Binary { lhs, rhs, .. } => {
-            rvalue_is_pure(*lhs, fn_ir) && rvalue_is_pure(*rhs, fn_ir)
+            rvalue_is_pure_inner(*lhs, fn_ir, visiting)
+                && rvalue_is_pure_inner(*rhs, fn_ir, visiting)
         }
-        ValueKind::Unary { rhs, .. } => rvalue_is_pure(*rhs, fn_ir),
-        ValueKind::Phi { args } => args.iter().all(|(v, _)| rvalue_is_pure(*v, fn_ir)),
+        ValueKind::Unary { rhs, .. } => rvalue_is_pure_inner(*rhs, fn_ir, visiting),
+        ValueKind::Phi { args } => args
+            .iter()
+            .all(|(v, _)| rvalue_is_pure_inner(*v, fn_ir, visiting)),
         ValueKind::Call { callee, args, .. } => {
             if call_is_pure(callee) {
-                args.iter().all(|a| rvalue_is_pure(*a, fn_ir))
+                args.iter()
+                    .all(|a| rvalue_is_pure_inner(*a, fn_ir, visiting))
             } else {
                 false
             }
         }
-        ValueKind::Len { base } => rvalue_is_pure(*base, fn_ir),
-        ValueKind::Indices { base } => rvalue_is_pure(*base, fn_ir),
+        ValueKind::Len { base } => rvalue_is_pure_inner(*base, fn_ir, visiting),
+        ValueKind::Indices { base } => rvalue_is_pure_inner(*base, fn_ir, visiting),
         ValueKind::Range { start, end } => {
-            rvalue_is_pure(*start, fn_ir) && rvalue_is_pure(*end, fn_ir)
+            rvalue_is_pure_inner(*start, fn_ir, visiting)
+                && rvalue_is_pure_inner(*end, fn_ir, visiting)
         }
         ValueKind::Index1D { base, idx, .. } => {
-            rvalue_is_pure(*base, fn_ir) && rvalue_is_pure(*idx, fn_ir)
+            rvalue_is_pure_inner(*base, fn_ir, visiting)
+                && rvalue_is_pure_inner(*idx, fn_ir, visiting)
         }
         ValueKind::Index2D { base, r, c } => {
-            rvalue_is_pure(*base, fn_ir) && rvalue_is_pure(*r, fn_ir) && rvalue_is_pure(*c, fn_ir)
+            rvalue_is_pure_inner(*base, fn_ir, visiting)
+                && rvalue_is_pure_inner(*r, fn_ir, visiting)
+                && rvalue_is_pure_inner(*c, fn_ir, visiting)
         }
         _ => false, // Conservative default
-    }
+    };
+
+    visiting.remove(&vid);
+    pure
 }
 
 /// Checks if a function call (by name) is pure based on a whitelist.
@@ -51,8 +73,6 @@ pub fn call_is_pure(callee: &str) -> bool {
         | "rowSums" | "%*%" | "crossprod" | "tcrossprod" | "is.na" | "is.finite"
         | "rr_field_get" | "rr_field_exists" | "rr_list_rest" | "rr_named_list"
         | "rr_row_sum_range" | "rr_col_sum_range" => true,
-        // Comparison/Logical helpers that might be lowered as calls
-        "rr_bool" => true,
         _ => false,
     }
 }
@@ -86,4 +106,38 @@ pub fn loop_is_pure(fn_ir: &FnIR, body: &std::collections::HashSet<BlockId>) -> 
         }
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mir::flow::Facts;
+    use crate::utils::Span;
+
+    #[test]
+    fn rr_bool_is_not_treated_as_pure_call() {
+        assert!(!call_is_pure("rr_bool"));
+    }
+
+    #[test]
+    fn phi_cycle_does_not_recurse_forever() {
+        let mut fn_ir = FnIR::new("phi_cycle".to_string(), vec![]);
+        let b0 = fn_ir.add_block();
+        fn_ir.entry = b0;
+        fn_ir.body_head = b0;
+
+        let phi = fn_ir.add_value(
+            ValueKind::Phi { args: Vec::new() },
+            Span::default(),
+            Facts::empty(),
+            None,
+        );
+        fn_ir.values[phi].kind = ValueKind::Phi {
+            args: vec![(phi, b0)],
+        };
+        fn_ir.values[phi].phi_block = Some(b0);
+        fn_ir.blocks[b0].term = Terminator::Return(Some(phi));
+
+        assert!(!rvalue_is_pure(phi, &fn_ir));
+    }
 }

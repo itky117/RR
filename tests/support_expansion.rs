@@ -1,64 +1,8 @@
+mod common;
+
+use common::{compile_rr, normalize, rscript_available, rscript_path, run_rscript};
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-
-#[derive(Debug)]
-struct RunResult {
-    status: i32,
-    stdout: String,
-    stderr: String,
-}
-
-fn normalize(s: &str) -> String {
-    s.replace("\r\n", "\n")
-}
-
-fn rscript_path() -> Option<String> {
-    if let Ok(path) = std::env::var("RRSCRIPT") {
-        if !path.trim().is_empty() {
-            return Some(path);
-        }
-    }
-    Some("Rscript".to_string())
-}
-
-fn rscript_available(path: &str) -> bool {
-    Command::new(path)
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-}
-
-fn run_rscript(path: &str, script: &Path) -> RunResult {
-    let output = Command::new(path)
-        .arg("--vanilla")
-        .arg(script)
-        .output()
-        .expect("failed to execute Rscript");
-    RunResult {
-        status: output.status.code().unwrap_or(-1),
-        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-    }
-}
-
-fn compile_rr(rr_bin: &Path, rr_path: &Path, out_path: &Path, level: &str) {
-    let status = Command::new(rr_bin)
-        .arg(rr_path)
-        .arg("-o")
-        .arg(out_path)
-        .arg("--no-runtime")
-        .arg(level)
-        .status()
-        .expect("failed to run RR compiler");
-    assert!(
-        status.success(),
-        "RR compile failed for {} ({})",
-        rr_path.display(),
-        level
-    );
-}
+use std::path::PathBuf;
 
 #[test]
 fn unary_field_and_seq_len_for_are_supported() {

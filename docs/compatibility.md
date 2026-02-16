@@ -30,7 +30,7 @@ RR still emits runnable R for these, but optimization is restricted for correctn
 - MIR/codegen currently targets 1D and 2D indexing forms.
 - Vectorization is broad but still pattern-driven, not full automatic transformation for arbitrary loops.
 - Matrix/dataframe optimization is partial and based on recognizable loop/value patterns.
-- Legacy `src/ir/*` path is not the primary production pipeline.
+- Legacy `src/legacy/ir/*` path is not the primary production pipeline.
 
 ## Practical Guidance
 
